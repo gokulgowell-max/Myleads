@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en"><head><base target="_top"><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
+const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
+/* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
+const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
+  const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
+    .then(r=>r.json()).then(r=>{if(r.ok){ok&&ok(r.data)}else{bad&&bad({message:r.error})}})
+    .catch(e=>{bad&&bad({message:'Cannot reach the server: '+e.message})});
+  const mk=(s,f)=>new Proxy({},{get:(t,p)=>{
+    if(p==='withSuccessHandler')return h=>mk(h,f);
+    if(p==='withFailureHandler')return h=>mk(s,h);
+    return (...args)=>send(p,args,s,f);
+  }});
+  return mk(null,null);
+})()}};
+</script>
+<script>let K=new URLSearchParams(location.search).get('k')||'';</script>
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#14231f;--mute:#5d6f69;--line:#dbe3e0;--pri:#0d6b5c;--priD:#084a40;--warn:#b4570a;--bad:#a8321f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 'Instrument Sans',system-ui,sans-serif}
+header{background:var(--priD);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1}header span{opacity:.8;font-size:13px}
+button,select,input,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:8px;padding:9px 14px;background:var(--pri);color:#fff;font-weight:600}
+button.ghost{background:transparent;color:inherit;border:1px solid currentColor}button:disabled{opacity:.5}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #7cc9ba;outline-offset:1px}
+nav{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--line);background:var(--card)}
+nav button{background:none;color:var(--mute);border-radius:8px 8px 0 0;border-bottom:3px solid transparent}nav button.on{color:var(--pri);border-color:var(--pri)}
+main{max-width:100%;margin:0 auto;padding:16px 24px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}.kpi b{display:block;font-size:26px}.kpi small{color:var(--mute)}
+.kpi.hot b{color:var(--warn)}
+.tw{overflow:auto;max-height:62vh;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:760px}th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+.tw td:first-child{position:sticky;left:0;z-index:1;background:var(--card);box-shadow:1px 0 0 var(--line)}.tw th:first-child{position:sticky;left:0;top:0;z-index:4;background:var(--card);box-shadow:1px 1px 0 var(--line)}th{font-size:13px;color:var(--mute);font-weight:600;position:sticky;top:0;z-index:2;background:var(--card);box-shadow:0 1px 0 var(--line)}tr:last-child td{border:0}
+.bar{height:8px;background:var(--line);border-radius:4px;min-width:90px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pri)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.tools input,.tools select,textarea,.f select,.f input{padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%}
+.tools input{flex:2;min-width:160px;width:auto}.tools select{flex:1;min-width:130px;width:auto}
+.lead{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center}
+.lead .n{font-weight:600}.lead .m{color:var(--mute);font-size:13px;grid-column:2}.lead a{color:var(--pri);font-weight:600;text-decoration:none}
+.tag{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600;background:#e4ece9;color:var(--priD)}
+.tag.g{background:#e9e9e9;color:#444}.tag.ok{background:#cdeedd;color:#0b5a32}.tag.w{background:#ffe8c7;color:#8a4a00}.tag.b{background:#f6d8d2;color:var(--bad)}
+.sg div{min-height:50px;padding:6px 10px}.sg b{font-size:18px}.sg small{margin-top:3px}.sh{margin:8px 0 4px}
+#top{position:sticky;top:0;z-index:7}
+.stk{position:sticky;top:var(--th,0px);z-index:5;background:var(--bg);margin:-16px -16px 10px;padding:12px 16px 2px}.stk .fp{margin:8px 0 4px}.stk.col .cv{display:none}
+.fr>button{height:38px;padding:0 14px;white-space:nowrap}.fr>button.tgl{color:var(--pri)}
+@media(max-width:700px){main{padding:10px}.stk{margin:-10px -10px 8px;padding:8px 10px 2px}}
+.his{background:#f3f5f4;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:13px;color:var(--mute);max-height:130px;overflow:auto}.his div{padding:2px 0}.his b{color:var(--ink)}.ud{margin:8px 0 0;font-weight:600;color:var(--pri)}
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.ck{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}.ck label{display:flex;align-items:center;gap:4px;white-space:nowrap;color:var(--ink)}
+.exr{display:flex;gap:10px;align-items:center;margin:4px 0}.exr label{flex:1;display:flex;gap:6px;align-items:center}.exr select{width:150px;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 8px}
+@media(max-width:600px){.pg{grid-template-columns:1fr}}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:12px;z-index:9}.modal.on{display:flex}
+.box{background:#fff;border-radius:12px;padding:18px;width:100%;max-width:440px;max-height:95vh;overflow:auto}
+.sh{font-size:12.5px;font-weight:600;color:var(--mute);margin:14px 0 6px}.sh:first-child{margin-top:0}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.sg div{background:var(--card);border:1px solid var(--line);border-top:3px solid #9aa8a3;border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:64px}
+.sg b{font-size:21px;line-height:1.1;font-weight:700}.sg small{font-size:11.5px;line-height:1.2;color:var(--mute);margin-top:5px}
+.sg .ok{border-top-color:#2e9b63}.sg .ok b{color:#1b7a49}.sg .w{border-top-color:#d98a1c}.sg .w b{color:#a8610a}.sg .b{border-top-color:var(--bad)}.sg .b b{color:var(--bad)}.sg .z{opacity:.55}
+.fp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:16px 0 12px;display:grid;gap:10px}
+.fr{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.sp{flex:1}
+.fr input,.fr select{height:38px;padding:0 10px;font-size:14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.fr select{flex:0 1 190px;min-width:130px}.fr input[type=date]{flex:0 0 150px}.fr #q{flex:1 1 220px;min-width:160px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;max-width:100%;overflow-x:auto}
+.seg button{background:#fff;color:var(--ink);border-radius:0;padding:0 14px;height:36px;font-size:13.5px;font-weight:500;border-right:1px solid var(--line);white-space:nowrap}.seg button:last-child{border-right:0}.seg button.on{background:var(--pri);color:#fff}
+@media(max-width:900px){.sg{display:flex;overflow-x:auto}.sg div{flex:0 0 110px}}
+.nm{margin:0;font-size:26px}.ph{display:block;font-size:22px;font-weight:700;color:var(--pri);text-decoration:none;margin:2px 0 10px}.wa{display:inline-block;background:#1fa855;color:#fff;border-radius:8px;padding:9px 16px;font-weight:600;text-decoration:none}select:disabled{background:#eef1f0;color:#9aa8a3;cursor:not-allowed}.f{margin:10px 0}.f label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.empty{padding:30px;text-align:center;color:var(--mute)}#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:10}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;max-width:640px}.panel textarea{min-height:200px}
+@media(max-width:560px){.lead{grid-template-columns:1fr auto}.lead .m{grid-column:1}}
+@media(prefers-reduced-motion:no-preference){.kpi b{transition:color .2s}}
+.mis{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#1d2733}
+.mis .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #1a2b4014;border:1px solid #e6ecf4}
+.mis .sec{border:1px solid #d9e1ec;border-left:5px solid #1479d4;border-radius:10px;padding:12px 14px;margin:12px 0;background:#fbfdff}
+.mis .sec h4{margin:0 0 10px;font-size:15px;color:#0a4d8c;display:flex;align-items:center;gap:8px}
+.mis .sec h4 b{background:#1479d4;color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.mis .sec h4 small{font-weight:400;color:#6b7a8c}
+.mis .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.mis label{font-weight:600;font-size:12px;display:block;margin-bottom:4px;color:#44546a}
+.mis input,.mis select,.mis textarea{width:100%;padding:9px 10px;border:1px solid #c3cedd;border-radius:8px;font:inherit;background:#fff;text-transform:uppercase}
+.mis input[type=date],.mis input[type=file],.mis input[type=checkbox]{text-transform:none}
+.mis textarea{min-height:70px;resize:vertical}
+.mis input:focus,.mis select:focus,.mis textarea:focus{outline:0;border-color:#1479d4;box-shadow:0 0 0 3px #1479d433}
+.mis .chips{display:flex;flex-wrap:wrap;gap:7px}
+.mis .chip{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #c3cedd;border-radius:20px;padding:5px 12px;font-weight:500;font-size:13px;margin:0;cursor:pointer;color:#1d2733}
+.mis .chip:has(input:checked){background:#e3f0fd;border-color:#1479d4;color:#0a4d8c;font-weight:600}
+.mis .chip input{width:auto;accent-color:#1479d4;text-transform:none}.mis .chip select{width:auto;padding:2px 4px;text-transform:none}
+.mis .ph{display:flex;gap:6px}.mis .ph select{width:112px;flex:none;padding:9px 4px}.mis .ph input{min-width:0;flex:1}
+.mis .wide{grid-column:span 2}
+.mis .btn{background:#fff;color:#0a4d8c;border:1px solid #d9e1ec;border-radius:20px;padding:7px 15px;cursor:pointer;font-weight:600;font-size:13px}
+.mis .btn.p{background:#1479d4;color:#fff;border-color:#1479d4}.mis .btn.on{background:#f5a623;color:#222;border-color:#f5a623}
+.mis .btn:disabled{opacity:.6}
+.mis .warn{background:#fff6dc;border:1px solid #ffe08a;padding:9px 12px;border-radius:8px;margin:8px 0}.mis .err{background:#fde8e8;border-color:#f5b5b5}
+.mis .stat{font-size:30px;font-weight:700;color:#1479d4}
+.mis .bar{display:flex;align-items:center;gap:6px;margin:4px 0}.mis .bar span{width:150px;font-size:12px}
+.mis .bar i{display:block;height:12px;background:linear-gradient(90deg,#0a4d8c,#1479d4);border-radius:6px}
+.mis .tw{overflow:auto;max-height:72vh}
+.mis table{border-collapse:collapse;width:100%;font-size:12.5px}
+.mis th,.mis td{border-bottom:1px solid #e8eef6;padding:8px 9px;text-align:left;vertical-align:top;white-space:nowrap}
+.mis th{background:#0a4d8c;color:#fff;position:sticky;top:0;font-weight:600}
+.mis td.wr{white-space:normal;min-width:200px}.mis td.ex{white-space:pre-line;min-width:170px;font-weight:600}
+.mis tbody tr:nth-child(even){background:#f7faff}
+.mis .hide{display:none}
+.mis thead tr:first-child th{top:0;z-index:3}.mis thead tr:nth-child(2) th{top:31px;z-index:3}.mis th:first-child{position:sticky;top:0;left:auto;background:#0a4d8c;color:#fff;box-shadow:none;z-index:3}.mis td:first-child{position:static;background:transparent;box-shadow:none}
+.mis input,.mis select,.mis textarea,.mis .ph input,.mis .ph select{font-size:14px!important;line-height:1.3!important;font-family:inherit!important}
+.lb{display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end}
+</style></head><body>
+<div id="top"><header><h1>Gowell Call Tracker</h1><span id="who"></span><button class="ghost" onclick="load()">Refresh</button><button class="ghost" id="so" style="display:none" onclick="signOut()">Sign out</button></header>
+<nav id="nav"></nav></div>
+<main id="main"><div class="empty">Loading…</div></main>
+<div class="modal" id="md"><div class="box" id="bx"></div></div><div id="toast"></div>
+<script>
+let D=null,tab='leads',sel=new Set(),F={q:'',st:'',cs:'',emp:'',proj:'',lf:'',lt:'',db:'Updated',col:innerWidth<700,de:'',pin:''};
+const ST={get(){try{return localStorage.getItem('gct')||''}catch(e){return ''}},set(v){try{v?localStorage.setItem('gct',v):localStorage.removeItem('gct')}catch(e){}}};
+if(!K)K=ST.get();
+const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toLocaleDateString('en-CA'),isM=()=>D&&D.me.role==='manager';
+const toast=t=>{const e=$('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2600)};
+const fail=e=>{if(String(e.message).includes('AUTH')){ST.set('');K='';return loginScreen('Your session ended. Please sign in again.')}toast(String(e.message||e).replace(/^(Error|Exception): /,''));document.querySelectorAll('button').forEach(b=>b.disabled=false)};
+const nameOf=em=>{const t=(D.members||[]).find(x=>x.email===String(em).toLowerCase());return t?t.name:(em||'Unassigned')};
+let RU=2,RD=2,RP=2;
+function load(){google.script.run.withSuccessHandler(d=>{D=d;if(d.rules){RU=d.rules.updates;RD=d.rules.days;RP=d.rules.pendFrom}SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;F.from=F.from||today();F.to=F.to||today();if(!window._d){F.lf=F.lt=today();window._d=1}if(!isM()){if(tab!='hist'&&tab!='pend')tab='leads'}else if(!window._i){tab='dash';window._i=1}draw()}).withFailureHandler(e=>{if(String(e.message).includes('AUTH')){const had=!!K;ST.set('');K='';loginScreen(had?'Your session ended. Please sign in again.':'')}else $('main').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}).getData(K)}
+function draw(){
+ $('who').innerHTML='Welcome, <b style="font-size:17px;font-weight:800;letter-spacing:.3px">'+esc(D.me.name)+'</b>';$('so').style.display=K?'':'none';
+ const pn=pendList().length,un=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed').length;
+ $('nav').innerHTML=(isM()?[['dash','Dashboard'],['leads','All leads'],['profs','Profiles'],['dist','Add & distribute'],['proj','Projects'],['unr','Unreachable'+(un?' ('+un+')':'')],['team','Team']]:[['leads','My leads'],['pend','Pending'+(pn?' ('+pn+')':'')],['profs','My profiles'],['hist','My calls']]).map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';draw()">${t[1]}</button>`).join('');
+ $('main').innerHTML=tab=='dash'?dash():tab=='dist'?dist():tab=='team'?team():tab=='hist'?histPage():tab=='profs'?profsPage():tab=='pend'?'<div id="dc"></div>':(tab=='unr'||tab=='proj')?'<div id="dc"></div>':list();if(['leads','pend','dash','hist','unr','proj','profs'].includes(tab))withLog(fill);
+ document.documentElement.style.setProperty('--th',$('top').offsetHeight+'px');
+}
+const wa=p=>{let d=String(p).replace(/\D/g,'');if(d.length==10)d='91'+d;else if(d.length==11&&d[0]=='0')d='91'+d.slice(1);return d};
+const TC={'Not Called':'g','Call Connected':'ok','Interested':'ok','Will Update':'w','Ring Not Response':'w','Incoming Not Available':'w','Switch Off':'w','Busy':'w','Waiting for Documents':'w','Submitted':'ok','Profile Created':'ok','Not Suitable':'b','Not Interested':'b','Wrong Number':'b','Invalid Number':'b'},tg=s=>s?`<span class="tag ${TC[s]||'g'}">${esc(s)}</span>`:'';
+const projSel=cb=>{const P=(D.projects||[]).slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));return `<select onchange="F.proj=this.value;${cb}"><option value="">All projects</option>${P.map(p=>`<option value="${esc(p.name)}" ${F.proj==p.name?'selected':''}>${esc(p.name)}${p.active?'':' (off)'}</option>`).join('')}</select>`};
+const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('en-CA')};
+const man=l=>/^Manual/.test(l.Source||'');
+const PMap=()=>{const m={};(D.profiles||[]).forEach(p=>{if(p.LeadID)m[p.LeadID]=p});return m};
+const profsIn=email=>(D.profiles||[]).filter(p=>(!email||p.CreatedBy==email)&&p.CreatedAt.slice(0,10)>=(F.lf||'0000-00-00')&&p.CreatedAt.slice(0,10)<=(F.lt||'9999-12-31'));
+const addD=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toLocaleDateString('en-CA')};
+const diffD=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
+const isOpen=(s,c)=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy'].includes(s)||(s=='Call Connected'&&['Will Update','Waiting for Documents'].includes(c));
+let DL=[],LG={},LD={},SX=[],LOGOK=false;
+const kp=a=>'<div class="kpis">'+a.map(x=>`<div class="kpi ${x[2]||''}"><b>${x[1]}</b><small>${x[0]}</small></div>`).join('')+'</div>';
+function withLog(cb){
+ if(LOGOK)return cb();
+ google.script.run.withSuccessHandler(r=>{DL=r;LG={};r.forEach(e=>{const k=e.LeadID+'|'+e.EmployeeEmail;(LG[k]=LG[k]||[]).push(e)});Object.values(LG).forEach(a=>a.sort((x,y)=>x.Time.localeCompare(y.Time)));LOGOK=true;cb()}).withFailureHandler(fail).getLog(K,'1970-01-01','9999-12-31')
+}
+function asOf(st,day){let r=null;for(const e of LG[st.LeadID+'|'+st.Email]||[]){const t=e.Time.slice(0,10);if(t<st.Start)continue;if(st.End&&t>=st.End)break;if(t<=day)r=e;else break}return r}
+const stOf=r=>r?{Status:r.Status,CandidateStatus:r.CandidateStatus,Time:r.Time}:{Status:'Not Called',CandidateStatus:'',Time:''};
+const wdiff=(a,b)=>{let n=0,d=new Date(a+'T12:00:00');const e=new Date(b+'T12:00:00');while(d<e){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d<=e)n++}return n};
+const addW=(s,n)=>{let d=new Date(s+'T12:00:00'),k=0;while(k<n){d.setDate(d.getDate()+1);if(d.getDay()!==0)k++}return d.toLocaleDateString('en-CA')};
+const dnum=st=>{const l=LD[st.LeadID],s=l&&!st.End&&l.AssigneeEmail==st.Email&&l.StintStart?addW(l.StintStart,+l.PauseDays||0):st.Start;return wdiff(s,today())+1};
+const PI=()=>new Set((D.projects||[]).filter(p=>!p.active).map(p=>p.name));
+const pendList=()=>SX.filter(s=>!s.End&&dnum(s)>=RP&&LD[s.LeadID]&&!PI().has(LD[s.LeadID].Project||'')&&LD[s.LeadID].AssigneeEmail==s.Email&&isOpen(LD[s.LeadID].Status,LD[s.LeadID].CandidateStatus));
+const finIn=(st,f,T)=>{const from=st.Start>f?st.Start:f;let r=null;for(const e of LG[st.LeadID+'|'+st.Email]||[]){const t=e.Time.slice(0,10);if(t<from)continue;if(st.End&&t>=st.End)break;if(t<=T)r=e;else break}return stOf(r)};
+const cnt=(W,k)=>k=='carry'?W.filter(w=>w.carried&&!w.prev).length:k=='again'?W.filter(w=>w.carried&&w.prev).length:W.filter(w=>w.kind==k).length;
+function wset(email){
+ const f=F.lf||'0000-00-00',t=F.lt||'9999-12-31',T=t>today()?today():t,out=[];
+ for(const st of SX){
+  if(email&&st.Email!=email)continue;
+  if(st.Start>T||(st.End&&st.End<=f))continue;
+  let kind;
+  if(st.Start>=f)kind=st.Round>1?'passed':'new';
+  else{const p=asOf(st,addD(f,-1)),q=stOf(p);if(!isOpen(q.Status,q.CandidateStatus))continue;kind=wdiff(st.Start,f)+1>=RP?'pend':p?'again':'carry'}
+  out.push({st,kind,fin:finIn(st,f,T),lead:LD[st.LeadID]||{},prev:st.Start<f&&!!asOf(st,addD(f,-1)),carried:st.Start<f})
+ }
+ return out
+}
+const dashW=()=>wset(F.de||'').filter(w=>!PI().has(w.lead.Project||'')&&(!F.proj||w.lead.Project==F.proj));
+function fill(){
+ if(tab=='leads')fillLeads();
+ else if(tab=='pend')fillPend();
+ else if(tab=='unr')fillUnr();
+ else if(tab=='profs')fillProfiles();
+ else if(tab=='proj')fillProj();
+ else if(tab=='hist')$('dc').innerHTML=histBody();
+ else if(tab=='dash'){const W=dashW(),c=k=>cnt(W,k);
+  $('dcards').innerHTML=statCards(W.map(w=>w.fin),[['New',c('new')],['Passed on to recruiters',c('passed')],['Carried forward',c('carry')],['Call again',c('again')],['Pending',pendList().filter(s=>!F.de||s.Email==F.de).length],['Unreachable',D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed').length],['Profiles created',profsIn(F.de).length]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · '));
+  $('dc').innerHTML=dashBody()}
+}
+function dash(){
+ const emp=`<select class="cv" onchange="F.de=this.value;fill()"><option value="">All team</option>${D.members.map(t=>`<option value="${esc(t.email)}" ${F.de==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`;
+ return `<div class="stk${F.col?' col':''}"><div class="cv" id="dcards"></div><div class="fp">${dbar(false)}<div class="fr">${emp}${projSel('fill()').replace('<select','<select class="cv"')}<span class="sp"></span><button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Cards & filters ▾ ('+when()+')':'Hide ▴'}</button></div></div></div><div id="dc"></div>`
+}
+function histPage(){return `<div class="stk"><div class="fp">${dbar(false)}</div></div><div id="dc"></div>`}
+function histTable(G,emp){
+ const pm={};D.leads.forEach(l=>pm[l.LeadID]=l);
+ return G.length?`<div class="tw"><table><tr><th>Time</th>${emp?'<th>Employee</th>':''}<th>Lead</th><th>Phone</th><th>Call status</th><th>Candidate status</th><th>Remark</th></tr>${G.slice().reverse().slice(0,500).map(e=>`<tr><td>${esc(e.Time.slice(0,16))}</td>${emp?`<td>${esc(e.Employee)}</td>`:''}<td>${esc(e.Name)}</td><td>${esc((pm[e.LeadID]||{}).Phone||'')}</td><td>${tg(e.Status)}</td><td>${tg(e.CandidateStatus)}</td><td style="white-space:normal;text-align:left">${esc(e.Remark)}</td></tr>`).join('')}</table></div>`:'<div class="empty">No calls recorded in this date range.</div>'
+}
+function histBody(){
+ const f=F.lf||'0000-00-00',t=F.lt||'9999-12-31',G=DL.filter(e=>e.Time.slice(0,10)>=f&&e.Time.slice(0,10)<=t),c=s=>G.filter(e=>e.CandidateStatus==s).length;
+ return kp([['Profiles created',profsIn(D.me.email).length],['Updates made',G.length],['Interested',c('Interested')],['Submitted',c('Submitted')],['Profile created',c('Profile Created')],['Will update',c('Will Update')],['Not interested',c('Not Interested')]])+histTable(G,false)
+}
+function dashBody(){
+ const f=F.lf||'0000-00-00',t=F.lt||'9999-12-31',inR=d=>d&&d.slice(0,10)>=f&&d.slice(0,10)<=t;
+ const G=DL.filter(e=>inR(e.Time)&&!PI().has((LD[e.LeadID]||{}).Project||'')&&(!F.proj||(LD[e.LeadID]&&LD[e.LeadID].Project==F.proj))&&(!F.de||e.EmployeeEmail==F.de));
+ let h='<div class="tw"><table><tr><th>Employee</th><th>New</th><th>Added by member</th><th>Passed on to them</th><th>Carried forward</th><th>Call again</th><th>Total</th><th>Updates</th><th>Connected</th><th>Ring no response</th><th>Switch off</th><th>Busy</th><th>Wrong / invalid</th><th>Interested</th><th>Will update</th><th>Waiting for documents</th><th>Submitted</th><th>Profile created</th><th>Not suitable</th><th>Not interested</th><th>Not called</th><th>Pending now</th><th>Passed on</th><th>Profiles created</th></tr>';
+ D.members.filter(x=>!F.de||x.email==F.de).forEach(x=>{
+  const W=wset(x.email).filter(w=>!PI().has(w.lead.Project||'')&&(!F.proj||w.lead.Project==F.proj)),k=n=>cnt(W,n),fs=(...s)=>W.filter(w=>s.includes(w.fin.Status)).length,fc=s=>W.filter(w=>w.fin.CandidateStatus==s).length;
+  const nw=W.filter(w=>w.kind=='new'),ad=nw.filter(w=>man(w.lead)).length;
+  h+=`<tr><td><b>${esc(x.name)}</b>${x.active?'':' (off)'}</td><td>${nw.length-ad}</td><td>${ad}</td><td>${k('passed')}</td><td>${k('carry')}</td><td>${k('again')}</td><td>${W.length}</td><td>${G.filter(e=>e.EmployeeEmail==x.email).length}</td><td>${fs('Call Connected')}</td><td>${fs('Ring Not Response')}</td><td>${fs('Switch Off')}</td><td>${fs('Busy')}</td><td>${fs('Wrong Number','Invalid Number')}</td><td>${fc('Interested')}</td><td>${fc('Will Update')}</td><td>${fc('Waiting for Documents')}</td><td>${fc('Submitted')}</td><td>${fc('Profile Created')}</td><td>${fc('Not Suitable')}</td><td>${fc('Not Interested')}</td><td>${fs('Not Called')}</td><td>${pendList().filter(s=>s.Email==x.email).length}</td><td>${SX.filter(s=>s.Email==x.email&&s.Outcome=='Passed on'&&inR(s.End)).length}</td><td>${profsIn(x.email).length}</td></tr>`});
+ return h+'</table></div><h3>Update history</h3>'+histTable(G,true)
+}
+const wk=()=>{const d=new Date();d.setDate(d.getDate()-(d.getDay()+6)%7);return d.toLocaleDateString('en-CA')},mo=()=>today().slice(0,8)+'01';
+const dOK=l=>{const d=(l[F.db]||'').slice(0,10);return (!F.lf||d>=F.lf)&&(!F.lt||d<=F.lt)};
+const when=()=>!F.lf&&!F.lt?'all dates':F.lf&&F.lf===F.lt?(F.lf===today()?'today':F.lf):(F.lf||'start')+' to '+(F.lt||'now');
+const inView=l=>dOK(l)||(l.Status=='Not Called'&&(!F.lt||F.lt>=today()));
+const dshort=s=>new Date(s.slice(0,10)+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+function lset(a,b){F.lf=a;F.lt=b;draw()}
+function dbar(basis){
+ const B=(t,a,b)=>`<button class="${F.lf===a&&F.lt===b?'on':''}" onclick="lset('${a}','${b}')">${t}</button>`;
+ return `<div class="fr cv"><div class="seg">${B('All dates','','')}${B('Today',today(),today())}${B('Yesterday',ago(1),ago(1))}${B('This week',wk(),today())}${B('This month',mo(),today())}</div><span class="sp"></span>${basis?`<select onchange="F.db=this.value;draw()"><option value="Updated" ${F.db=='Updated'?'selected':''}>Date: last updated</option><option value="AssignedAt" ${F.db=='AssignedAt'?'selected':''}>Date: assigned</option></select>`:''}<input type="date" value="${F.lf}" aria-label="From date" onchange="F.lf=this.value;draw()"><input type="date" value="${F.lt}" aria-label="To date" onchange="F.lt=this.value;draw()"></div>`
+}
+function statCards(L,sub){
+ const n=(k,v)=>L.filter(l=>l[k]==v).length,C=(t,v,c)=>`<div class="${c||''}${v?'':' z'}"><b>${v}</b><small>${esc(t)}</small></div>`;
+ return `<div class="sh">Call status · ${L.length} leads · ${when()}${sub?' · '+sub:''}</div><div class="sg">${D.statuses.map(s=>C(s,n('Status',s),TC[s])).join('')}</div><div class="sh">Candidate status</div><div class="sg">${D.cand.map(s=>C(s,n('CandidateStatus',s),TC[s])).join('')}</div>`
+}
+function list(){
+ const sl=(k,all,arr)=>`<select class="cv" onchange="F.${k}=this.value;fillLeads()"><option value="">${all}</option>${arr.map(s=>`<option ${F[k]==s?'selected':''}>${s}</option>`).join('')}</select>`;
+ const emp=isM()?`<select class="cv" onchange="F.emp=this.value;fillLeads()"><option value="">All employees</option><option value="_un" ${F.emp=='_un'?'selected':''}>Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}" ${F.emp==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:'';
+ let h=`<div class="stk${F.col?' col':''}">`+(isM()?'':'<div class="cv" id="lcards"></div>')+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${emp}</div></div></div>`;
+ if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><button onclick="bulk()">Assign selected</button></div>`;
+ return h+'<div id="rows"></div>'
+}
+const leadCard=(l,fin,tags,meta,btn,chk)=>`<div class="lead">${chk||'<span></span>'}
+ <div><span class="n">${esc(l.Name||'(no name)')}</span> ${tg(fin.Status)} ${tg(fin.CandidateStatus)}${tags}<br><a href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a></div>${btn?`<div class="lb">${btn}</div>`:'<span></span>'}
+ <div class="m">${meta.filter(Boolean).map(esc).join(' | ')}${fin.Remark?'<br>'+esc(fin.Remark):''}</div></div>`;
+const MX_CC='India|91,Oman|968,Saudi Arabia|966,UAE|971,Qatar|974,Kuwait|965,Bahrain|973,Afghanistan|93,Albania|355,Algeria|213,Andorra|376,Angola|244,Argentina|54,Armenia|374,Australia|61,Austria|43,Azerbaijan|994,Bangladesh|880,Belarus|375,Belgium|32,Belize|501,Benin|229,Bhutan|975,Bolivia|591,Bosnia and Herzegovina|387,Botswana|267,Brazil|55,Brunei|673,Bulgaria|359,Burkina Faso|226,Burundi|257,Cambodia|855,Cameroon|237,Cape Verde|238,Central African Republic|236,Chad|235,Chile|56,China|86,Colombia|57,Comoros|269,Congo|242,DR Congo|243,Costa Rica|506,Croatia|385,Cuba|53,Cyprus|357,Czech Republic|420,Denmark|45,Djibouti|253,Ecuador|593,Egypt|20,El Salvador|503,Equatorial Guinea|240,Eritrea|291,Estonia|372,Eswatini|268,Ethiopia|251,Fiji|679,Finland|358,France|33,Gabon|241,Gambia|220,Georgia|995,Germany|49,Ghana|233,Greece|30,Guatemala|502,Guinea|224,Guinea-Bissau|245,Guyana|592,Haiti|509,Honduras|504,Hong Kong|852,Hungary|36,Iceland|354,Indonesia|62,Iran|98,Iraq|964,Ireland|353,Israel|972,Italy|39,Ivory Coast|225,Japan|81,Jordan|962,Kenya|254,Kiribati|686,Kosovo|383,Kyrgyzstan|996,Laos|856,Latvia|371,Lebanon|961,Lesotho|266,Liberia|231,Libya|218,Liechtenstein|423,Lithuania|370,Luxembourg|352,Macau|853,Madagascar|261,Malawi|265,Malaysia|60,Maldives|960,Mali|223,Malta|356,Marshall Islands|692,Mauritania|222,Mauritius|230,Mexico|52,Micronesia|691,Moldova|373,Monaco|377,Mongolia|976,Montenegro|382,Morocco|212,Mozambique|258,Myanmar|95,Namibia|264,Nauru|674,Nepal|977,Netherlands|31,New Zealand|64,Nicaragua|505,Niger|227,Nigeria|234,North Korea|850,North Macedonia|389,Norway|47,Pakistan|92,Palau|680,Palestine|970,Panama|507,Papua New Guinea|675,Paraguay|595,Peru|51,Philippines|63,Poland|48,Portugal|351,Romania|40,Russia / Kazakhstan|7,Rwanda|250,Samoa|685,San Marino|378,Sao Tome and Principe|239,Senegal|221,Serbia|381,Seychelles|248,Sierra Leone|232,Singapore|65,Slovakia|421,Slovenia|386,Solomon Islands|677,Somalia|252,South Africa|27,South Korea|82,South Sudan|211,Spain|34,Sri Lanka|94,Sudan|249,Suriname|597,Sweden|46,Switzerland|41,Syria|963,Taiwan|886,Tajikistan|992,Tanzania|255,Thailand|66,Timor-Leste|670,Togo|228,Tonga|676,Tunisia|216,Turkey|90,Turkmenistan|993,Tuvalu|688,Uganda|256,Ukraine|380,United Kingdom|44,USA / Canada / Caribbean|1,Uruguay|598,Uzbekistan|998,Vanuatu|678,Vatican City|379,Venezuela|58,Vietnam|84,Yemen|967,Zambia|260,Zimbabwe|263'.split(',').map(x=>x.split('|'));
+const AGES=Array.from({length:43},(_,i)=>String(18+i)),YRS=Array.from({length:26},(_,i)=>`<option value="${i}">${i} Years</option>`).join(''),MOS=Array.from({length:12},(_,i)=>`<option value="${i}">${i} Months</option>`).join('');
+const mxH=(L,v)=>v==='Other'?L.some(x=>String(x).startsWith('Other')):L.includes(v);
+const mxEq=(a,b)=>b==='Other'?String(a).startsWith('Other'):a===b;
+const mxOth=x=>String(x).startsWith('Other')?'Other':x;
+const mxTm=x=>{const e=String(x||'').split('.');return(+e[0]||0)*12+(+e[1]||0)};
+const mxExp=x=>{const e=String(x||'').split('.');return e[0]?e[0]+' YR '+(e[1]||'0')+' MO':''};
+const mxPj=s=>{if(s&&typeof s==='object')return s;try{const j=JSON.parse(s||'{}');if(j&&typeof j==='object')return j}catch(e){}const o={};String(s||'').split(/,\s*/).forEach(p=>{const i=p.lastIndexOf(':');if(i>0)o[p.slice(0,i).trim()]=p.slice(i+1).trim()});return o};
+const mxFd=s=>s?new Date(String(s).replace(' ','T')).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'';
+const mxYmd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const MX_PER=[['','All time'],['today','Today'],['yesterday','Yesterday'],['week','This week'],['month','This month'],['last7','Last 7 days'],['last30','Last 30 days'],['custom','Custom range']];
+function mxRange(p){const n=new Date(),d0=new Date(n.getFullYear(),n.getMonth(),n.getDate()),add=(d,k)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+k);
+ if(p==='today')return[mxYmd(d0),mxYmd(d0)];if(p==='yesterday'){const y=add(d0,-1);return[mxYmd(y),mxYmd(y)]}
+ if(p==='week')return[mxYmd(add(d0,-((d0.getDay()+6)%7))),mxYmd(d0)];if(p==='month')return[mxYmd(new Date(n.getFullYear(),n.getMonth(),1)),mxYmd(d0)];
+ if(p==='last7')return[mxYmd(add(d0,-6)),mxYmd(d0)];if(p==='last30')return[mxYmd(add(d0,-29)),mxYmd(d0)];return['','']}
+function mxPer(pf,cb){return `<div><label>Period</label><select id="${pf}Per" onchange="mxPerSet('${pf}','${cb}')">${MX_PER.map(p=>`<option value="${p[0]}">${p[1]}</option>`).join('')}</select></div><div><label>Date from</label><input id="${pf}From" type="date" onchange="mxCus('${pf}','${cb}')"></div><div><label>Date to</label><input id="${pf}To" type="date" onchange="mxCus('${pf}','${cb}')"></div>`}
+function mxPerSet(pf,cb){const v=$(pf+'Per').value;if(v!=='custom'){const r=mxRange(v);$(pf+'From').value=r[0];$(pf+'To').value=r[1]}window[cb]()}
+function mxCus(pf,cb){$(pf+'Per').value='custom';window[cb]()}
+const mxTeamOpts=s=>(D.members||[]).map(t=>`<option value="${esc(t.email)}" ${s==t.email?'selected':''}>${esc(t.name)}</option>`).join('');
+const mxSplit=v=>{const dg=String(v||'').replace(/\D/g,'');if(dg.length===10)return['+91',dg];const c=MX_CC.map(x=>x[1]).sort((a,b)=>b.length-a.length).find(x=>dg.startsWith(x));return c?['+'+c,dg.slice(c.length)]:['+91',dg]};
+let mxLim=100,mxRowsCache=[];
+function mxGo(v){F.ps=v;draw()}
+function profsPage(){F.ps=F.ps||'list';const mgr=isM(),b=(v,t)=>`<button class="btn ${F.ps==v?'on':''}" onclick="mxGo('${v}')">${t}</button>`;
+ return `<div class="mis" style="margin-bottom:12px"><div class="chips" style="gap:8px">${b('dash','Dashboard')}${b('list',mgr?'All Candidates':'My Candidates')}${b('add','Add Candidate')}</div></div><div id="misbody"></div>`}
+function fillProfiles(){const v=F.ps||'list';if(v==='dash')mxDash();else if(v==='add')mxForm({},'misbody');else mxList()}
+function mxCols(mgr){const C=[['ID',p=>p.ProfileID,'Record'],['Added On',p=>mxFd(p.CreatedAt),'Record'],['Added By',p=>p.CreatedByName,'Record'],['Name',p=>p.Name,'Candidate'],['Passport',p=>p.Passport,'Candidate'],['Job Role',p=>p.JobRole||'Nurse','Candidate'],['Gender',p=>p.Gender,'Personal'],['Age',p=>p.Age,'Personal'],['State',p=>p.State,'Personal'],['Location',p=>p.Location,'Personal'],['Current Location',p=>p.CurrentLocation,'Personal'],['Mobile',p=>p.Mobile,'Contact'],['Alt Mobile',p=>p.AltMobile,'Contact'],['Qualification',p=>p.Qualification,'Professional'],['Experience',p=>mxExp(p.Experience),'Professional'],['Nursing Reg.',p=>p.NursingReg,'Professional'],['Departments',p=>p.Departments,'Professional','wr'],['Exams & Status',p=>Object.entries(mxPj(p.Exams)).map(([k,v])=>k+': '+v).join('\n'),'Professional','ex'],['Desired Countries',p=>p.Countries,'Preferences','wr'],['Job Type',p=>p.JobTypes,'Preferences','wr'],['Remarks',p=>p.Remarks,'Record','wr'],['Last Updated',p=>p.UpdatedAt?mxFd(p.UpdatedAt):'','Record']];
+ return mgr?C:C.filter(c=>c[0]!=='Added By')}
+function mxList(){const mgr=isM(),cols=mxCols(mgr),o=D.opts;
+ const sel=(k,l,a)=>`<div><label>${l}</label><select id="mx_${k}" onchange="mxListDraw()"><option value="">All</option>${a.map(x=>`<option>${esc(x)}</option>`).join('')}</select></div>`;
+ const dyn=(k,l)=>`<div><label>${l}</label><select id="mx_${k}" onchange="mxListDraw()"><option value="">All</option></select></div>`;
+ const grp=[];cols.forEach(c=>{if(grp.length&&grp[grp.length-1][0]===c[2])grp[grp.length-1][1]++;else grp.push([c[2],1])});
+ $('misbody').innerHTML=`<div class="mis"><div class="card"><div class="g">
+ ${mgr?`<div><label>Employee (added by)</label><select id="mx_Emp" onchange="mxListDraw()"><option value="">All</option>${mxTeamOpts(F.pe||'')}</select></div>`:''}
+ <div><label>Search name / mobile / passport / ID</label><input id="mx_q" oninput="mxListDraw()"></div>
+ <div><label>Job role</label><select id="mx_JobRole" onchange="mxJobChg()"><option value="">All job roles</option>${(D.roles||[]).map(r=>`<option>${esc(r.Role)}</option>`).join('')}</select></div>
+ ${dyn('Qualification','Qualification')}
+ ${sel('State','State',o.STATES)}${sel('Gender','Gender',o.GENDERS)}
+ ${dyn('Registration','Registration')}
+ ${sel('CurrentLocation','Current location',o.CUR)}
+ <div><label>Age up to</label><select id="mx_AgeTo" onchange="mxListDraw()"><option value="">All</option>${AGES.map(x=>`<option>${x}</option>`).join('')}</select></div>
+ <div><label>Minimum experience – years</label><select id="mx_ExpY" onchange="mxListDraw()"><option value="">All</option>${YRS}</select></div>
+ <div><label>Minimum experience – months</label><select id="mx_ExpM" onchange="mxListDraw()"><option value="">All</option>${MOS}</select></div>
+ ${dyn('Dept','Speciality / departments')}
+ ${sel('Ctry','Desired country',o.COUNTRIES)}${sel('Job','Job type',o.JOBS)}
+ ${dyn('Exam','Exam')}${sel('ExS','Exam status',o.EXSTAT)}
+ ${mxPer('mx_','mxListDraw')}</div>
+ <p><button class="btn" onclick="mxClear()">Clear filters</button> ${mgr?'<button class="btn p" onclick="mxExport()">Export CSV</button>':''} <b id="mx_cnt"></b></p></div>
+ <div class="card tw"><table><thead><tr>${grp.map(g=>`<th colspan="${g[1]}" style="text-align:center;font-size:11px;letter-spacing:1.5px">${g[0]}</th>`).join('')}<th></th></tr><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}<th>File</th></tr></thead><tbody id="mx_tb"></tbody></table><p id="mx_more" class="hide" style="text-align:center"><button class="btn" onclick="mxLim+=100;mxListDraw()">Show more</button></p></div></div>`;
+ mxFillFilters();mxLim=100;mxListDraw()}
+function mxFillFilters(){const jr=$('mx_JobRole')?$('mx_JobRole').value:'',role=(D.roles||[]).find(r=>r.Role===jr),roles=role?[role]:(D.roles||[]);
+ const fill=(id,list,first)=>{const el=$(id);if(!el)return;const cur=el.value;el.innerHTML='<option value="">'+first+'</option>'+list.map(x=>`<option>${esc(x)}</option>`).join('');if(list.indexOf(cur)>=0)el.value=cur};
+ fill('mx_Qualification',[...new Set(roles.flatMap(r=>r.Qualifications))],'All');
+ fill('mx_Dept',[...new Set(roles.flatMap(r=>r.Speciality))],'All');
+ fill('mx_Exam',[...new Set(roles.flatMap(r=>r.Exams))],'All');
+ const t=role?role.RegType:'';
+ fill('mx_Registration',t==='YesNo'?['Yes','No']:t==='Number'?['Has registration number','No registration number']:t==='None'?['Not required']:['Yes','No'],'All')}
+function mxJobChg(){mxFillFilters();mxListDraw()}
+function mxClear(){document.querySelectorAll('.mis select,.mis input[type=text],.mis input[type=search],.mis input[type=date],.mis input:not([type])').forEach(e=>e.value='');mxFillFilters();mxListDraw()}
+function mxListDraw(){const mgr=isM(),cols=mxCols(mgr),g=k=>{const e=$('mx_'+k);return e?e.value:''},q=g('q').toLowerCase().replace(/\s/g,'');
+ const rows=(D.profiles||[]).filter(r=>{
+  if(q&&!(r.Name+r.Mobile+r.AltMobile+r.Passport+r.ProfileID).toLowerCase().replace(/\s/g,'').includes(q))return false;
+  if(mgr&&g('Emp')&&r.CreatedBy!==g('Emp'))return false;
+  if(g('JobRole')&&(r.JobRole||'Nurse')!==g('JobRole'))return false;
+  if(g('Qualification')&&!mxEq(r.Qualification,g('Qualification')))return false;
+  if(g('State')&&!mxEq(r.State,g('State')))return false;
+  if(g('Gender')&&!mxEq(r.Gender,g('Gender')))return false;
+  if(g('CurrentLocation')&&!mxEq(r.CurrentLocation,g('CurrentLocation')))return false;
+  const rg=g('Registration');
+  if(rg==='Yes'&&r.NursingReg!=='Yes')return false;
+  if(rg==='No'&&r.NursingReg!=='No')return false;
+  if(rg==='Has registration number'&&!r.NursingReg)return false;
+  if(rg==='No registration number'&&r.NursingReg)return false;
+  if(rg==='Not required'&&r.NursingReg)return false;
+  if(g('AgeTo')&&+r.Age>+g('AgeTo'))return false;
+  if((g('ExpY')!==''||g('ExpM')!==''))if(mxTm(r.Experience)<(+g('ExpY')||0)*12+(+g('ExpM')||0))return false;
+  if(g('Dept')&&!mxH(String(r.Departments||'').split(', '),g('Dept')))return false;
+  if(g('Ctry')&&!mxH(String(r.Countries||'').split(', '),g('Ctry')))return false;
+  if(g('Job')&&!mxH(String(r.JobTypes||'').split(', '),g('Job')))return false;
+  const ex=mxPj(r.Exams);
+  if(g('Exam')){const ek=g('Exam')==='Other'?Object.keys(ex).find(k=>k.startsWith('Other')):g('Exam');if(!ek||!(ek in ex))return false;if(g('ExS')&&ex[ek]!==g('ExS'))return false}
+  else if(g('ExS')&&!Object.values(ex).includes(g('ExS')))return false;
+  const d=String(r.CreatedAt).slice(0,10);if(g('From')&&d<g('From'))return false;if(g('To')&&d>g('To'))return false;
+  return true});
+ mxRowsCache=rows;
+ $('mx_cnt').textContent=rows.length+' of '+(D.profiles||[]).length+' candidates';
+ $('mx_tb').innerHTML=rows.slice(0,mxLim).map(r=>'<tr>'+cols.map(c=>`<td class="${c[3]||''}">${esc(c[1](r))}</td>`).join('')+`<td>${mgr?(r.FileID?`<a href="https://drive.google.com/file/d/${esc(r.FileID)}/view" target="_blank" rel="noopener">Open</a>`:''):(r.FileName?'✓':'')}</td></tr>`).join('')||`<tr><td colspan="${cols.length+1}">No candidates found</td></tr>`;
+ $('mx_more').classList.toggle('hide',rows.length<=mxLim)}
+function mxExport(){const cols=mxCols(isM()),q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+ const t=[cols.map(c=>q(c[0])).join(',')].concat(mxRowsCache.map(r=>cols.map(c=>q(c[1](r))).join(','))).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+t],{type:'text/csv'}));a.download='nurse-profiles.csv';a.click()}
+function mxDash(){const mgr=isM();
+ $('misbody').innerHTML=`<div class="mis"><div class="card"><div class="g">${mgr?`<div><label>Employee</label><select id="mx_dEmp" onchange="mxDashDraw()"><option value="">All employees</option>${mxTeamOpts('')}</select></div>`:''}<div><label>Job role</label><select id="mx_dRole" onchange="mxDashDraw()"><option value="">All job roles</option>${(D.roles||[]).map(r=>`<option>${esc(r.Role)}</option>`).join('')}</select></div>${mxPer('mx_d','mxDashDraw')}</div></div><div id="mx_dbody"></div></div>`;mxDashDraw()}
+function mxDashDraw(){const mgr=isM(),e=mgr&&$('mx_dEmp')?$('mx_dEmp').value:'',jr=$('mx_dRole')?$('mx_dRole').value:'',a=$('mx_dFrom').value,b=$('mx_dTo').value;
+ const base=(D.profiles||[]).filter(r=>(!e||r.CreatedBy===e)&&(!jr||(r.JobRole||'Nurse')===jr)),inR=(r,x,y)=>{const d=String(r.CreatedAt).slice(0,10);return(!x||d>=x)&&(!y||d<=y)},L=base.filter(r=>inR(r,a,b));
+ const cnt=f=>{const m={};L.forEach(r=>f(r).forEach(k=>{if(k)m[k]=(m[k]||0)+1}));return m};
+ const bars=(t,m,click)=>{const x=Object.entries(m).sort((p,q)=>q[1]-p[1]).slice(0,12),mx=x.length?x[0][1]:1;return `<div class="card"><h4 style="margin:0 0 10px;color:#0a4d8c">${t}</h4>${x.map(([k,v])=>`<div class="bar"${click?` style="cursor:pointer" data-k="${esc(k)}" onclick="mxGoEmp(this.dataset.k)"`:''}><span>${esc(k)}</span><i style="width:${v/mx*60}%"></i> ${v}</div>`).join('')||'No data'}</div>`};
+ const cc=p=>{const r=mxRange(p);return base.filter(x=>inR(x,r[0],r[1])).length},st=(n,l)=>`<div class="card" style="margin:0"><div class="stat">${n}</div>${l}</div>`;
+ const sp=s=>String(s||'').split(', ').map(mxOth);
+ $('mx_dbody').innerHTML=`<div class="g" style="margin-bottom:14px">${st(L.length,'Selected period')}${st(cc('today'),'Today')}${st(cc('week'),'This week')}${st(cc('month'),'This month')}${st(base.length,'All time')}</div>
+ <div class="g" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">
+ ${mgr&&!jr?bars('Employee-wise candidates',cnt(r=>[r.CreatedByName]),true):''}${bars('Job role',cnt(r=>[r.JobRole||'Nurse']))}${bars('Qualification',cnt(r=>[mxOth(r.Qualification)]))}${bars('State',cnt(r=>[mxOth(r.State)]))}
+ ${bars('Desired countries',cnt(r=>sp(r.Countries)))}${bars('Looking for (job type)',cnt(r=>sp(r.JobTypes)))}${bars('Speciality / departments',cnt(r=>sp(r.Departments)))}
+ ${bars('Exams passed',cnt(r=>Object.entries(mxPj(r.Exams)).filter(x=>x[1]==='Passed').map(x=>mxOth(x[0]))))}${bars('Exams preparing',cnt(r=>Object.entries(mxPj(r.Exams)).filter(x=>x[1]==='Preparing').map(x=>mxOth(x[0]))))}
+ ${bars('Registration',cnt(r=>[r.NursingReg||'Not given']))}</div>`}
+function mxGoEmp(n){F.pe=n;F.ps='list';draw()}
+function mxChips(name,arr){return `<div class="chips">${arr.map(x=>`<label class="chip"><input type="checkbox" name="mx_${name}" value="${esc(x)}">${esc(x)}</label>`).join('')}</div>${arr.includes('Other')?`<input id="mx_o_${name}" class="hide" maxlength="60" placeholder="TYPE OTHER" style="margin-top:8px;max-width:380px">`:''}`}
+function mxFormHTML(pm){pm=pm||{};const o=D.opts,cc=pm.cc||'+91',R=D.roles||[];
+ const f=(l,k)=>`<div><label>${l}</label><input id="mx_${k}" value="${esc(pm[k]||'')}"></div>`;
+ const s=(l,k,a)=>`<div><label>${l}</label><select id="mx_${k}"><option value="">Select</option>${a.map(x=>`<option>${esc(x)}</option>`).join('')}</select>${a.includes('Other')?`<input id="mx_o_${k}" class="hide" maxlength="60" placeholder="TYPE HERE" style="margin-top:6px">`:''}</div>`;
+ const ph=(l,k,v,code)=>`<div class="wide"><label>${l}</label><div class="ph"><select id="mx_cc_${k}">${MX_CC.map(c=>`<option value="+${c[1]}" ${'+'+c[1]===code?'selected':''}>+${c[1]} ${c[0]}</option>`).join('')}</select><input id="mx_${k}" type="tel" inputmode="numeric" maxlength="15" placeholder="NUMBER (NO SPACE)" value="${esc(v||'')}"></div></div>`;
+ return `<div class="mis"><div id="mx_dup"></div>
+ <div class="sec"><h4><b>1</b> Basic Details</h4><div class="g">
+  ${f('Candidate Name (as per passport)*','Name')}<div><label>Passport Number* (8 characters)</label><input id="mx_Passport" maxlength="8" placeholder="LETTERS + NUMBERS"></div>
+  ${ph('Mobile Number*','Mobile',pm.num,cc)}${ph('Alternative Mobile Number','AltMobile','','+91')}
+  ${s('Gender*','Gender',o.GENDERS)}${s('Age*','Age',AGES)}${s('State*','State',o.STATES)}${f('Location*','Location')}${s('Current Location*','CurrentLocation',o.CUR)}
+ </div></div>
+ <div class="sec"><h4><b>2</b> Job Role &amp; Details</h4><div class="g"><div><label>Job role*</label><select id="mx_JobRole" onchange="mxRole()"><option value="">Select job role</option>${R.map(r=>`<option>${esc(r.Role)}</option>`).join('')}</select></div></div><div id="mx_roleblock"></div></div>
+ <div class="sec"><h4><b>3</b> Experience</h4><div class="g"><div><label>Total experience* (Years / Months)</label><div class="ph"><select id="mx_ExpY" style="flex:1;width:auto"><option value="">Years</option>${YRS}</select><select id="mx_ExpM" style="flex:1;width:auto"><option value="">Months</option>${MOS}</select></div></div></div></div>
+ <div class="sec"><h4><b>4</b> Desired Countries* <small>select all that apply</small></h4>${mxChips('Countries',o.COUNTRIES)}</div>
+ <div class="sec"><h4><b>5</b> Looking For – Job Type* <small>select all that apply</small></h4>${mxChips('JobTypes',o.JOBS)}</div>
+ <div class="sec"><h4><b>6</b> Remarks</h4><textarea id="mx_Remarks" maxlength="300" placeholder="ANY EXTRA NOTE ABOUT THIS CANDIDATE"></textarea></div>
+ <div class="sec"><h4><b>7</b> Upload ONE file*</h4><small>CV, certificates and ID combined in one file. PDF / JPG / PNG / DOC, max 10 MB.</small><br><br><input type="file" id="mx_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
+ <div style="text-align:right;border-top:1px solid #d9e1ec;padding-top:12px;margin-top:10px">${pm.leadId?'<button class="btn" onclick="closeP()" style="margin-right:8px">Cancel</button>':''}<button class="btn p" id="mx_sv" style="padding:10px 30px" onclick="mxSubmit('${esc(pm.leadId||'')}')">Submit Candidate</button></div></div>`}
+function mxRole(){const r=(D.roles||[]).find(x=>x.Role===$('mx_JobRole').value),b=$('mx_roleblock');if(!r){b.innerHTML='';return}
+ let reg='';
+ if(r.RegType==='YesNo')reg=`<div><label>Registration*</label><select id="mx_Registration"><option value="">Select</option><option>Yes</option><option>No</option></select></div>`;
+ else if(r.RegType==='Number')reg=`<div><label>Registration number* (council / state)</label><input id="mx_Registration" maxlength="30" placeholder="REGISTRATION NUMBER"></div>`;
+ const spec=r.Speciality.length?`<div style="margin-top:12px"><label>Speciality / departments* (select all that apply)</label>${mxChips('Departments',r.Speciality)}</div>`:'';
+ const ex=`<div style="margin-top:12px"><label>Exams and status (tick an exam, then choose its status)</label><div class="chips">${r.Exams.map(x=>`<div class="chip"><label style="margin:0"><input type="checkbox" name="mx_Exams" value="${esc(x)}"> ${esc(x)}</label><select class="hide">${D.opts.EXSTAT.map(z=>`<option>${z}</option>`).join('')}</select></div>`).join('')}</div><input id="mx_o_Exams" class="hide" maxlength="60" placeholder="TYPE OTHER EXAM" style="margin-top:8px;max-width:380px"></div>`;
+ b.innerHTML=`<div class="g" style="margin-top:12px"><div><label>Qualification* (for ${esc(r.Role)})</label><select id="mx_Qualification"><option value="">Select</option>${r.Qualifications.map(x=>`<option>${esc(x)}</option>`).join('')}</select>${r.Qualifications.includes('Other')?`<input id="mx_o_Qualification" class="hide" maxlength="60" placeholder="TYPE HERE" style="margin-top:6px">`:''}</div>${reg}</div>${spec}${ex}`;
+ mxBind()}
+function mxForm(pm,target){$(target).innerHTML=mxFormHTML(pm);mxBind()}
+function mxBind(){
+ document.querySelectorAll('.mis select[id^=mx_]').forEach(el=>{const k=el.id.slice(3),o=$('mx_o_'+k);if(o)el.addEventListener('change',()=>o.classList.toggle('hide',el.value!=='Other'))});
+ document.querySelectorAll('.mis input[type=checkbox][name^=mx_]').forEach(c=>{const k=c.name.slice(3);
+  if(c.value==='Other'&&$('mx_o_'+k))c.addEventListener('change',()=>$('mx_o_'+k).classList.toggle('hide',!c.checked));
+  if(k==='Exams')c.addEventListener('change',()=>c.closest('.chip').querySelector('select').classList.toggle('hide',!c.checked))});
+ ['mx_Mobile','mx_AltMobile'].forEach(id=>{const el=$(id);if(el)el.oninput=()=>el.value=el.value.replace(/\D/g,'')});
+ const p=$('mx_Passport');if(p){p.oninput=()=>p.value=p.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8);p.onblur=mxDup}
+ const m=$('mx_Mobile');if(m)m.onblur=mxDup;
+ const n=$('mx_Name');if(n)n.oninput=()=>n.value=n.value.toUpperCase()}
+function mxDup(){const m=$('mx_Mobile'),p=$('mx_Passport'),box=$('mx_dup');if(!box)return;const mob=m&&m.value?$('mx_cc_Mobile').value+m.value:'',pp=p?p.value:'';if(!mob&&!pp){box.innerHTML='';return}
+ google.script.run.withSuccessHandler(r=>{box.innerHTML=!r?'':r.canUpdate
+  ?`<div class="mis"><div class="warn">Already uploaded by <b>${esc(r.by)}</b> on ${mxFd(r.date)}. You can submit updated details – the old data and old file will be replaced.</div></div>`
+  :`<div class="mis"><div class="warn err">Already uploaded by <b>${esc(r.by)}</b> on ${mxFd(r.date)}. It cannot be changed until ${mxFd(r.openOn)}.</div></div>`}).withFailureHandler(()=>{}).checkProfile(K,mob,pp)}
+function mxCollect(strict){const el=k=>$('mx_'+k),v=k=>el(k)?el(k).value:'';
+ const ot=k=>{const t=(($('mx_o_'+k)||{}).value||'').trim().toUpperCase().replace(/[,{}"\\]/g,' ').replace(/\s+/g,' ').trim();if(!t&&strict)throw new Error('Please type the "Other" value');return t?'Other: '+t:'Other'};
+ const one=k=>v(k)==='Other'?ot(k):v(k);
+ const many=k=>[...document.querySelectorAll(`input[name="mx_${k}"]:checked`)].map(c=>c.value==='Other'?ot(k):c.value).join(', ');
+ const ex={};document.querySelectorAll('input[name="mx_Exams"]:checked').forEach(c=>{const key=c.value==='Other'?ot('Exams'):c.value;ex[key]=c.closest('.chip').querySelector('select').value});
+ const ey=v('ExpY'),em=v('ExpM');if(strict&&(ey===''||em===''))throw new Error('Select experience (years and months)');
+ return{JobRole:v('JobRole'),Name:v('Name').trim().toUpperCase(),Passport:v('Passport').toUpperCase(),Mobile:v('Mobile')?v('cc_Mobile')+v('Mobile'):'',AltMobile:v('AltMobile')?v('cc_AltMobile')+v('AltMobile'):'',Gender:one('Gender'),Age:v('Age'),State:one('State'),Location:v('Location').trim().toUpperCase(),CurrentLocation:v('CurrentLocation'),Qualification:one('Qualification'),Registration:v('Registration').trim().toUpperCase(),Experience:ey!==''&&em!==''?ey+'.'+em:'',Departments:many('Departments'),Countries:many('Countries'),JobTypes:many('JobTypes'),Exams:JSON.stringify(ex),Remarks:v('Remarks').trim().toUpperCase()}}
+function mxSubmit(leadId){const b=$('mx_sv');let d;try{d=mxCollect(true)}catch(e){return toast(e.message)}
+ const fi=$('mx_file').files[0];if(!fi)return toast('Upload the one combined file');if(fi.size>10*1048576)return toast('File too large (max 10 MB)');
+ b.disabled=true;b.textContent='Saving...';
+ const rd=new FileReader();rd.onload=()=>google.script.run.withSuccessHandler(r=>{toast(r.updated?'Old profile replaced with the new one':'Candidate saved');if(leadId)closeP();else F.ps='list';refreshSilent()}).withFailureHandler(e=>{fail(e);b.disabled=false;b.textContent='Submit Candidate'}).saveProfile(K,leadId,d,String(rd.result).split(',')[1],fi.name,fi.type);rd.readAsDataURL(fi)}
+function profOpen(id){const l=D.leads.find(x=>x.LeadID==id);if(!l)return;const sp=mxSplit(l.Phone);
+ $('bx').style.maxWidth='840px';$('bx').innerHTML='<div style="text-align:right;margin-bottom:6px"><button onclick="closeP()">✕ Close</button></div>'+mxFormHTML({Name:l.Name,num:sp[1],cc:sp[0],leadId:id});mxBind();$('md').classList.add('on')}
+function newProj(){$('bx').style.maxWidth='420px';$('bx').innerHTML=`<h3 class="nm" style="font-size:22px">Create project</h3><div class="f"><label>Project name</label><input id="np_n" autocomplete="off" placeholder="e.g. UK Nurses Oct"></div><div class="row"><button class="ghost" style="color:var(--mute)" onclick="closeP()">Cancel</button><button id="np_s" onclick="saveProj()">Save project</button></div>`;$('md').classList.add('on');$('np_n').focus()}
+function saveProj(){const n=$('np_n').value.trim();if(!n)return toast('Enter a project name');$('np_s').disabled=true;google.script.run.withSuccessHandler(()=>{toast('Project created');closeP();load()}).withFailureHandler(e=>{fail(e);$('np_s').disabled=false}).addProject(K,n)}
+function closeP(){$('md').classList.remove('on');$('bx').style.maxWidth=''}
+
+function fillLeads(){
+ const PM=PMap();
+ if(isM()){$('rows').innerHTML=mrows();return}
+ const me=D.me.email,W=wset(me),c=k=>cnt(W,k),pn=pendList().length;
+ $('lcards').innerHTML=statCards(W.map(w=>w.fin),[['New',c('new')+c('passed')],['Carried forward',c('carry')],['Call again',c('again')],['Pending',pn],['Profiles created',profsIn(me).length]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · '));
+ const q=F.q.toLowerCase(),T=F.lt&&F.lt<today()?F.lt:today(),past=!!F.lt&&F.lt<today();
+ const L=W.filter(w=>(!q||((w.lead.Name||'')+(w.lead.Phone||'')).toLowerCase().includes(q))&&(!F.st||w.fin.Status==F.st)&&(!F.cs||w.fin.CandidateStatus==F.cs)&&(!F.proj||w.lead.Project==F.proj));
+ const done=w=>w.fin.Time&&w.fin.Time.slice(0,10)==T,top=L.filter(done).reduce((p,w)=>!p||w.fin.Time>=p.fin.Time?w:p,null),rk=w=>w.lead.LeadID===F.pin?-1:w===top?0:done(w)?2:1;
+ L.sort((x,y)=>rk(x)-rk(y)||(rk(x)==2?x.fin.Time.localeCompare(y.fin.Time):0));
+ const tag={new:'',passed:'',carry:'',again:' <span class="tag w">Call again</span>'};
+ $('rows').innerHTML=(past?'<div class="empty" style="padding:8px;text-align:left">History view: statuses as they were on '+esc(when())+'. Updates are only possible from Today.</div>':'')+(L.length?L.slice(0,300).map(w=>{const l=w.lead,ed=!past&&!w.st.End&&l.AssigneeEmail==me,cf=w.kind=='carry'?` <span class="tag w">Carried from ${dshort(w.st.Start)}</span>`:'';
+  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,ed?'Day '+dnum(w.st)+' of '+RD+' · Update '+(l.Updates||0)+' of '+RU:''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
+}
+let MXL=[];
+function exportLeadsXls(){if(!isM())return toast('Only admins can export');const L=MXL||[];if(!L.length)return toast('No leads to export');
+ const cols=[['Lead ID',l=>l.LeadID],['Name',l=>l.Name],['Phone',l=>l.Phone],['Project',l=>l.Project],['Source',l=>l.Source],['Assigned to',l=>l.AssignedTo],['Round',l=>l.Round],['Call status',l=>l.Status],['Candidate status',l=>l.CandidateStatus],['Updates',l=>l.Calls],['Remark',l=>l.Remark],['Assigned on',l=>l.AssignedAt],['Last updated',l=>l.Updated],['Unreachable',l=>l.Unreachable]];
+ const x=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const cell=v=>`<Cell><Data ss:Type="${typeof v==='number'?'Number':'String'}">${x(v)}</Data></Cell>`;
+ const xml=`${'<'+'?'}xml version="1.0"?>${'<'+'?'}mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Leads"><Table><Row>${cols.map(c=>cell(c[0])).join('')}</Row>${L.map(l=>'<Row>'+cols.map(c=>cell(c[1](l))).join('')+'</Row>').join('')}</Table></Worksheet></Workbook>`;
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'application/vnd.ms-excel'}));a.download='leads-'+today()+'.xls';a.click()}
+function mrows(){
+ const PM=PMap();
+ const q=F.q.toLowerCase(),L=D.leads.filter(l=>l.Unreachable!=''?false:(!q||(l.Name+l.Phone).toLowerCase().includes(q))&&(!F.st||l.Status==F.st)&&(!F.cs||l.CandidateStatus==F.cs)&&inView(l)&&(!F.proj||l.Project==F.proj)&&(!F.emp||(F.emp=='_un'?!l.AssigneeEmail:l.AssigneeEmail==F.emp)));
+ L.sort((x,y)=>y.Updated.localeCompare(x.Updated));
+ MXL=L;
+ return L.length?L.slice(0,300).map(l=>leadCard(l,l,(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(PI().has(l.Project||'')?' <span class="tag b">Project off</span>':'')+(l.Round>1?' <span class="tag w">Round '+l.Round+'</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,l.AssignedTo||'Unassigned',l.Calls>0?l.Calls+' update(s), last '+l.Updated.slice(0,16):'Assigned '+l.AssignedAt.slice(0,16)],l.AssigneeEmail?`<button onclick="edit('${l.LeadID}')">Update</button>`:'',`<input type="checkbox" ${sel.has(l.LeadID)?'checked':''} onchange="this.checked?sel.add('${l.LeadID}'):sel.delete('${l.LeadID}')" aria-label="Select">`)).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>'
+}
+function fillPend(){
+ const L=pendList().map(s=>({s,l:LD[s.LeadID]})).sort((a,b)=>b.s.Start.localeCompare(a.s.Start)*-1);
+ $('dc').innerHTML=`<div class="sh" style="margin-top:0">${L.length} pending lead(s). Finish them before day ${RD}, or they move to the next recruiter.</div>`+(L.length?L.map(({s,l})=>{const left=RD-dnum(s);return leadCard(l,l,` <span class="tag w">Update ${l.Updates||0} of ${RU} · ${left>0?left+' day(s) left':'last day'}</span>`,[l.Project,l.Source,'Day '+dnum(s)+' of '+RD],`<button onclick="edit('${l.LeadID}')">Update</button>`)}).join(''):'<div class="empty">Nothing pending. Great work.</div>')
+}
+function fillUnr(){
+ const L=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed');
+ const jr=l=>DL.filter(e=>e.LeadID==l.LeadID).sort((a,b)=>a.Time.localeCompare(b.Time)).map(e=>`Recruiter ${e.Round} · update ${e.UpdateNo} · ${e.Time.slice(0,10)} · ${esc(e.Employee)} · ${esc(e.Status)}${e.CandidateStatus?' / '+esc(e.CandidateStatus):''}${e.Remark?' — '+esc(e.Remark):''}`).join('<br>')||'No updates recorded';
+ $('dc').innerHTML=`<div class="sh" style="margin-top:0">${L.length} unreachable lead(s): 3 recruiters could not close them.</div>`+(L.length?L.map(l=>`<div class="lead" style="grid-template-columns:1fr"><div><span class="n">${esc(l.Name)}</span> <span class="tag b">Unreachable since ${dshort(l.Unreachable)}</span><br><a href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a> <span style="color:var(--mute)">${esc(l.Project||'')}</span></div><div class="m">${jr(l)}</div>
+ <div class="tools" style="margin:0"><select id="ug_${l.LeadID}"><option value="">Give to recruiter…</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><button onclick="giveU('${l.LeadID}')">Give (fresh 3 updates)</button><button class="ghost" style="color:var(--mute)" onclick="closeU('${l.LeadID}')">Remove from list</button></div></div>`).join(''):'<div class="empty">No unreachable leads.</div>')
+}
+let PN=[];
+function fillProj(){
+ const by={};D.leads.forEach(l=>{const p=l.Project||'';(by[p]=by[p]||[]).push(l)});
+ const reg={};(D.projects||[]).forEach(p=>reg[p.name]=p);
+ PN=Object.keys(by).concat((D.projects||[]).map(p=>p.name)).filter((n,i,a)=>a.indexOf(n)==i).sort((a,b)=>(a===''?1:0)-(b===''?1:0)||a.localeCompare(b));
+ const ac=PN.filter(n=>!reg[n]||reg[n].active).length;
+ $('dc').innerHTML=`<div style="margin-bottom:10px"><button onclick="newProj()">+ Create project</button></div><div class="sh" style="margin-top:0">${PN.length} project(s) · ${ac} active · ${PN.length-ac} off. Switching a project off hides its leads from recruiters. Switching it on brings them all back to the same recruiters.</div>`+(PN.length?PN.map((n,i)=>{
+  const L=by[n]||[],p=reg[n],on=!p||p.active,as=L.filter(l=>l.AssigneeEmail),nc=as.filter(l=>l.Status=='Not Called').length,pr=as.filter(l=>l.Status!='Not Called'&&isOpen(l.Status,l.CandidateStatus)).length,cl=as.filter(l=>!isOpen(l.Status,l.CandidateStatus)).length,un=L.filter(l=>l.Unreachable&&l.Unreachable!='Closed').length,ua=L.filter(l=>!l.AssigneeEmail&&!l.Unreachable).length,rc=new Set(as.map(l=>l.AssigneeEmail)).size;
+  return `<div class="lead" style="grid-template-columns:1fr auto"><div><span class="n">${esc(n||'No project')}</span> <span class="tag ${on?'ok':'b'}">${on?'Active':'Off since '+dshort(p.pausedOn)}</span><br><span style="color:var(--mute);font-size:13px">${L.length} leads · ${rc} recruiter(s)</span></div>${n?`<button class="${on?'ghost':''}" style="${on?'color:var(--bad)':''}" onclick="togP(${i})">${on?'Deactivate':'Activate'}</button>`:'<span></span>'}
+  <div class="m" style="grid-column:1/-1">Not called ${nc} · In progress ${pr} · Closed ${cl} · Unreachable ${un} · Unassigned ${ua}</div></div>`}).join(''):'<div class="empty">No projects yet. Add leads with a project name first.</div>')
+}
+function togP(i){
+ const n=PN[i],p=(D.projects||[]).find(x=>x.name==n),on=p?!p.active:false,c=D.leads.filter(l=>l.Project==n&&l.AssigneeEmail).length;
+ if(!on&&!confirm('Deactivate "'+n+'"?\n'+c+' lead(s) will disappear from recruiters until you activate it again. Nothing is deleted, and the 6-day clock pauses.'))return;
+ google.script.run.withSuccessHandler(()=>{toast(on?'Project activated':'Project deactivated');load()}).withFailureHandler(fail).setProjectActive(K,n,on)
+}
+function giveU(id){const e=$('ug_'+id).value;if(!e)return toast('Choose a recruiter');google.script.run.withSuccessHandler(()=>{toast('Lead given');load()}).withFailureHandler(fail).assign(K,[id],e)}
+function closeU(id){if(confirm('Remove this lead from the Unreachable list?'))google.script.run.withSuccessHandler(()=>{toast('Removed');load()}).withFailureHandler(fail).closeUnreachable(K,id)}
+function addLead(){
+ const ps=[...new Set(D.leads.map(l=>l.Project).filter(Boolean))];
+ $('bx').innerHTML=`<h3 class="nm" style="font-size:22px">Add lead</h3>
+ <div class="f"><label>Name</label><input id="an" autocomplete="off"></div>
+ <div class="f"><label>Phone number</label><input id="ap" type="tel" inputmode="tel" placeholder="e.g. 9876543210"></div>
+ <div class="f"><label>Source (optional)</label><input id="as" placeholder="e.g. Walk-in, reference" autocomplete="off"></div>
+ <div class="f"><label>Project (optional)</label><input id="aj" list="pl" autocomplete="off"><datalist id="pl">${ps.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
+ <div class="row"><button class="ghost" style="color:var(--mute)" onclick="$('md').classList.remove('on')">Cancel</button><button id="ab2" onclick="saveLead()">Add lead</button></div>`;
+ $('md').classList.add('on');$('an').focus()
+}
+function saveLead(){
+ const n=$('an').value.trim(),p=$('ap').value.trim();if(!n||p.replace(/\D/g,'').length<10)return toast('Enter a name and a valid 10-digit phone number');
+ $('ab2').disabled=true;
+ google.script.run.withSuccessHandler(id=>{F.pin=id;F.q='';F.st='';F.cs='';F.lf=F.lt=today();$('md').classList.remove('on');toast('Lead added');load()}).withFailureHandler(fail).addMyLead(K,n,p,$('as').value,$('aj').value)
+}
+function edit(id){
+ const l=D.leads.find(x=>x.LeadID==id);if(!l)return;
+ const me=(LG[id+'|'+l.AssigneeEmail]||[]).filter(e=>e.Time.slice(0,10)==today()&&e.Time.slice(0,10)>=(l.StintStart||'')).pop()||null;
+ const used=+l.Updates||0,n=me?used:used+1,day=l.StintStart?wdiff(l.StintStart,today())+1:1,o=(a,v)=>a.map(s=>`<option ${s==v?'selected':''}>${s}</option>`).join('');
+ $('bx').innerHTML=`<h3 class="nm">${esc(l.Name||'(no name)')}</h3><a class="ph" href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a><a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}">WhatsApp</a>
+ <div class="f"><label>Name (add or correct)</label><input id="ln_name" value="${esc(l.Name)}" placeholder="ENTER NAME" maxlength="80"> <button class="ghost" style="margin-top:6px" onclick="saveLeadName('${id}')">Save name</button></div>
+ <p class="ud">Update ${n} of ${RU} · Day ${day} of ${RD}${me?' · you can edit today\'s update until midnight':''}</p><div class="his" id="hs">Loading earlier updates…</div>
+ <div class="f"><label>Call status</label><select id="s" onchange="tc()"><option value="Not Called">Select call status</option>${o(D.statuses.filter(x=>x!='Not Called'),me?me.Status:'')}</select></div>
+ <div class="f" id="cf"><label>Candidate status</label><select id="r"><option value="">Select</option>${o(D.cand,me?me.CandidateStatus:'')}</select></div>
+ <div class="f"><label>Remark</label><textarea id="k" rows="3">${esc(me?me.Remark:'')}</textarea></div>
+ ${!isM()&&l.AssigneeEmail==D.me.email&&!PMap()[id]&&l.Status=='Call Connected'?`<button class="ghost" style="color:var(--pri);margin:4px 0 8px" onclick="profOpen('${id}')">Create profile</button>`:(PMap()[id]?'<p class="ud">Profile created</p>':'')}<div class="row"><button class="ghost" style="color:var(--mute)" onclick="$('md').classList.remove('on')">Cancel</button><button id="sv" onclick="save('${id}')">Save call</button></div>`;
+ tc();$('md').classList.add('on');
+ google.script.run.withSuccessHandler(h=>{const r=h.filter(e=>e.Round==(+l.Round||1)&&!(e.Time.slice(0,10)==today()&&e.Round==(+l.Round||1))).sort((a,b)=>a.Time.localeCompare(b.Time));
+  if($('hs'))$('hs').innerHTML=r.length?'<b>Earlier updates (locked)</b>'+r.map(e=>`<div>${e.Time.slice(0,10)} · ${e.Round==(+l.Round||1)?'You':'Earlier recruiter'} · update ${e.UpdateNo||'-'} · ${esc(e.Status)}${e.CandidateStatus?' / '+esc(e.CandidateStatus):''}${e.Remark?' — '+esc(e.Remark):''}</div>`).join(''):'No earlier updates'}).withFailureHandler(()=>{if($('hs'))$('hs').textContent='Could not load earlier updates'}).getHistory(K,id)
+}
+function saveLeadName(id){const v=($('ln_name').value||'').trim();if(!v)return toast('Enter a name');google.script.run.withSuccessHandler(()=>{const l=D.leads.find(x=>x.LeadID==id);if(l)l.Name=v;toast('Name saved');try{fill()}catch(e){}}).withFailureHandler(fail).setLeadName(K,id,v)}
+function tc(){const on=$('s').value=='Call Connected',r=$('r');r.disabled=!on;if(!on)r.value=''}
+function refreshSilent(){google.script.run.withSuccessHandler(d=>{D=d;SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;withLog(()=>{try{fill()}catch(e){}})}).withFailureHandler(()=>{}).getData(K)}
+function save(id){
+ const s=$('s').value,r=s=='Call Connected'?$('r').value:'';if(s=='Not Called')return toast('Pick the call status');if(s=='Call Connected'&&!r)return toast('Pick the candidate status');
+ const l=D.leads.find(x=>x.LeadID==id),prev=l?Object.assign({},l):null,k=$('k').value;
+ if(l){l.Status=s;l.CandidateStatus=r;l.Remark=k;F.pin=id}
+ $('md').classList.remove('on');toast('Saved');
+ try{fill()}catch(e){}
+ google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1}refreshSilent()}).withFailureHandler(e=>{if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e)}).saveCall(K,id,s,r,k,'')
+}
+function bulk(){
+ if(!sel.size)return toast('Select leads first');const t=$('bt').value;if(!t)return toast('Choose who to assign to');
+ google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) moved');sel.clear();load()}).withFailureHandler(fail).assign(K,[...sel],t=='_un'?'':t)
+}
+function team(){
+ const cnt=e=>D.leads.filter(l=>l.AssigneeEmail==e).length,B=(c,t,f)=>`<button class="ghost" style="color:${c}" onclick="${f}">${t}</button>`;
+ return `<div class="panel" style="max-width:none"><h3 style="margin-top:0">Add team member</h3>
+ <div class="tools"><input id="mn" placeholder="Name (shown at sign-in)"><input id="em" type="email" placeholder="Email address"><select id="mr"><option value="Caller">Own leads only</option><option value="Manager">Full access</option></select><input id="mp" placeholder="Password (blank = automatic)"><button id="mb" onclick="addM()">Add member</button></div>
+ <p style="color:var(--mute);margin:0">Members sign in by choosing their name and typing the password shown below. Full access opens everything: dashboard, all leads, distribute, projects and team. Own leads only shows just that person's own leads. Passwords are stored as plain text in the Users sheet so you can read them here, so keep the sheet private and never reuse a personal password.</p></div><br>
+ <div class="tw"><table><tr><th>Name</th><th>Email</th><th>Access level</th><th>Password</th><th>Leads</th><th>Status</th><th></th></tr>${D.staff.map(m=>{const me=m.email==D.me.email,mg=m.role=='manager';return `<tr><td><b>${esc(m.name)}</b>${me?' (you)':''}</td><td>${esc(m.email)}</td><td>${mg?'Full access':'Own leads only'}</td><td><code>${esc(m.pw)}</code></td><td>${mg?'-':cnt(m.email)}</td><td>${m.active?'Active':'Off'}</td><td>${B('var(--pri)','Rename',`renameP('${esc(m.email)}')`)} ${B('var(--pri)','Set password',`setP('${esc(m.email)}')`)} ${me?'':B('var(--pri)',m.active?'Deactivate':'Activate',`togM('${esc(m.email)}',${!m.active})`)} ${me?'':B('var(--bad)','Delete',`delM('${esc(m.email)}')`)}</td></tr>`}).join('')}</table></div>`
+}
+function renameP(e){
+ const m=D.staff.find(x=>x.email==e),n=prompt('Name for '+m.email+' (shown at sign-in)',m.name);if(n===null)return;
+ google.script.run.withSuccessHandler(()=>{toast('Name saved');load()}).withFailureHandler(fail).renameMember(K,e,n)
+}
+function setP(e){
+ const m=D.staff.find(x=>x.email==e),p=prompt('New password for '+m.name+' (4 to 40 characters)',m.pw||'');if(p===null)return;
+ google.script.run.withSuccessHandler(()=>{toast('Password saved');load()}).withFailureHandler(fail).setPassword(K,e,p)
+}
+function addM(){
+ const n=$('mn').value.trim(),e=$('em').value.trim();if(!n||!e)return toast('Enter name and email');
+ $('mb').disabled=true;google.script.run.withSuccessHandler(()=>{toast('Member saved');load()}).withFailureHandler(fail).addMember(K,n,e,$('mr').value,$('mp').value)
+}
+function togM(e,on){google.script.run.withSuccessHandler(()=>{toast(on?'Activated':'Deactivated');load()}).withFailureHandler(fail).setMemberActive(K,e,on)}
+function delM(e){
+ const m=D.staff.find(x=>x.email==e),n=D.leads.filter(l=>l.AssigneeEmail==e).length;
+ if(!confirm('Delete '+m.name+'?'+(n?'\n'+n+' lead(s) assigned to them will become Unassigned so you can give them to someone else.':'')+'\nTheir past call history stays in the records.'))return;
+ google.script.run.withSuccessHandler(()=>{toast('Member deleted');load()}).withFailureHandler(fail).deleteMember(K,e)
+}
+function dist(){
+ return `<div class="panel"><h3 style="margin-top:0">Add &amp; distribute leads</h3>
+ <div class="f"><label>Project (active projects only)</label><select id="pj"><option value="">Select project</option>${(D.projects||[]).filter(p=>p.active).map(p=>`<option>${esc(p.name)}</option>`).join('')}</select>${(D.projects||[]).some(p=>p.active)?'':'<small style="color:var(--mute)">No active project. Create one in the Projects tab first.</small>'}</div>
+ <div class="f"><label>Leads: one per line as Name, Phone, Source (paste from Excel)</label><textarea id="t" placeholder="Anu Thomas, 9876543210, Facebook"></textarea></div>
+ <div class="f"><label>Recruiters (leads are shared equally, round robin)</label><div id="rc">${D.team.map(t=>`<label style="display:block;color:var(--ink);font-size:15px"><input type="checkbox" value="${esc(t.email)}" style="width:auto"> ${esc(t.name)}</label>`).join('')}</div>
+ <button class="ghost" style="color:var(--pri);margin-top:6px" onclick="document.querySelectorAll('#rc input').forEach(c=>c.checked=true)">Select all</button></div>
+ <div class="row"><button id="ab" onclick="add()">Distribute leads</button></div></div>`
+}
+function add(){
+ const t=$('t').value.trim(),p=$('pj').value.trim(),e=[...document.querySelectorAll('#rc input:checked')].map(c=>c.value);
+ if(!p)return toast('Enter a project name');if(!t)return toast('Paste some leads first');if(!e.length)return toast('Select at least one recruiter');
+ $('ab').disabled=true;
+ google.script.run.withSuccessHandler(r=>{toast(r.added+' added. Skipped: '+(r.dup||0)+' duplicate in this project, '+(r.short||0)+' with fewer than 10 digits');tab='leads';F.proj=p;load()}).withFailureHandler(fail).addLeads(K,t,e,p)
+}
+function loginScreen(msg){
+ $('who').textContent='';$('nav').innerHTML='';$('so').style.display='none';
+ $('main').innerHTML=`<div class="panel" style="margin:30px auto"><h3 style="margin-top:0">Sign in</h3><p style="color:var(--mute);margin-top:0">${esc(msg||'Choose your name and enter your password.')}</p>
+ <div class="f"><label>Name</label><select id="ln"><option value="">Loading…</option></select></div>
+ <div class="f"><label>Password</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key=='Enter')pwLogin()"></div>
+ <div class="row"><button id="lb2" onclick="pwLogin()">Sign in</button></div></div>`;
+ google.script.run.withSuccessHandler(a=>{const s=$('ln');if(s)s.innerHTML='<option value="">Select your name</option>'+a.map(n=>`<option>${esc(n)}</option>`).join('')}).withFailureHandler(()=>{const s=$('ln');if(s)s.innerHTML='<option value="">Could not load names</option>'}).loginList()
+}
+function pwLogin(){
+ const n=$('ln').value,p=$('lp').value;if(!n||!p)return toast('Choose your name and enter your password');$('lb2').disabled=true;
+ google.script.run.withSuccessHandler(t=>{ST.set(t);K=t;load()}).withFailureHandler(fail).loginPassword(n,p)
+}
+function signOut(){ST.set('');K='';D=null;loginScreen()}
+addEventListener('resize',()=>{const t=$('top');if(t)document.documentElement.style.setProperty('--th',t.offsetHeight+'px')});
+load();
+</script></body></html>
