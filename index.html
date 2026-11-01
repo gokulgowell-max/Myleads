@@ -492,7 +492,7 @@ function bulk(){
 function team(){
  const cnt=e=>D.leads.filter(l=>l.AssigneeEmail==e).length,B=(c,t,f)=>`<button class="ghost" style="color:${c}" onclick="${f}">${t}</button>`;
  return `<div class="panel" style="max-width:none"><h3 style="margin-top:0">Add team member</h3>
- <div class="tools"><input id="mn" placeholder="Name (shown at sign-in)"><input id="em" type="email" placeholder="Email address"><select id="mr"><option value="Caller">Own leads only</option><option value="Manager">Full access</option></select><input id="mp" placeholder="Password (blank = automatic)"><button id="mb" onclick="addM()">Add member</button></div>
+ <div class="tools"><input id="mn" placeholder="Name (shown at sign-in)"><input id="em" type="email" placeholder="Email address"><select id="mr"><option value="Caller">Own leads only</option><option value="Manager">Full access</option></select><input id="mp" placeholder="PIN, 4 digits (blank = automatic)"><button id="mb" onclick="addM()">Add member</button></div>
  <p style="color:var(--mute);margin:0">Members sign in by choosing their name and typing the password shown below. Full access opens everything: dashboard, all leads, distribute, projects and team. Own leads only shows just that person's own leads. Passwords are stored as plain text in the Users sheet so you can read them here, so keep the sheet private and never reuse a personal password.</p></div><br>
  <div class="tw"><table><tr><th>Name</th><th>Email</th><th>Access level</th><th>Password</th><th>Leads</th><th>Status</th><th></th></tr>${D.staff.map(m=>{const me=m.email==D.me.email,mg=m.role=='manager';return `<tr><td><b>${esc(m.name)}</b>${me?' (you)':''}</td><td>${esc(m.email)}</td><td>${mg?'Full access':'Own leads only'}</td><td><code>${esc(m.pw)}</code></td><td>${mg?'-':cnt(m.email)}</td><td>${m.active?'Active':'Off'}</td><td>${B('var(--pri)','Rename',`renameP('${esc(m.email)}')`)} ${B('var(--pri)','Set password',`setP('${esc(m.email)}')`)} ${me?'':B('var(--pri)',m.active?'Deactivate':'Activate',`togM('${esc(m.email)}',${!m.active})`)} ${me?'':B('var(--bad)','Delete',`delM('${esc(m.email)}')`)}</td></tr>`}).join('')}</table></div>`
 }
@@ -501,7 +501,7 @@ function renameP(e){
  google.script.run.withSuccessHandler(()=>{toast('Name saved');load()}).withFailureHandler(fail).renameMember(K,e,n)
 }
 function setP(e){
- const m=D.staff.find(x=>x.email==e),p=prompt('New password for '+m.name+' (4 to 40 characters)',m.pw||'');if(p===null)return;
+ const m=D.staff.find(x=>x.email==e),p=prompt('New 4-digit PIN for '+m.name,m.pw||'');if(p===null)return;if(!/^\d{4}$/.test(p))return toast('PIN must be exactly 4 digits');
  google.script.run.withSuccessHandler(()=>{toast('Password saved');load()}).withFailureHandler(fail).setPassword(K,e,p)
 }
 function addM(){
@@ -530,15 +530,40 @@ function add(){
 }
 function loginScreen(msg){
  $('who').textContent='';$('nav').innerHTML='';$('so').style.display='none';
- $('main').innerHTML=`<div class="panel" style="margin:30px auto"><h3 style="margin-top:0">Sign in</h3><p style="color:var(--mute);margin-top:0">${esc(msg||'Choose your name and enter your password.')}</p>
- <div class="f"><label>Name</label><select id="ln"><option value="">Loading…</option></select></div>
- <div class="f"><label>Password</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key=='Enter')pwLogin()"></div>
- <div class="row"><button id="lb2" onclick="pwLogin()">Sign in</button></div></div>`;
+ document.body.style.background='linear-gradient(160deg,#0a4d40 0%,#0d6b5c 42%,#eef5f3 42%)';
+ $('main').innerHTML=`<div style="max-width:390px;margin:44px auto;background:#fff;border-radius:22px;box-shadow:0 24px 60px #0a3d3440;overflow:hidden">
+  <div style="background:linear-gradient(135deg,#0d6b5c,#084a40);color:#fff;padding:28px 24px 26px;text-align:center">
+   <div style="width:68px;height:68px;margin:0 auto 12px;border-radius:18px;background:#e8a33d;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#084a40;box-shadow:0 8px 20px #0003">G</div>
+   <div style="font-size:21px;font-weight:700;letter-spacing:.2px">Gowell Call Tracker</div>
+   <div style="opacity:.85;font-size:13px;margin-top:6px">${esc(msg||'Welcome. Sign in with your name and PIN.')}</div>
+  </div>
+  <div style="padding:24px 26px 26px">
+   <label style="font-size:12px;font-weight:700;color:#44546a;letter-spacing:.3px">YOUR NAME</label>
+   <select id="ln" style="width:100%;margin:6px 0 20px;padding:13px 12px;border:1.5px solid #c9d8d4;border-radius:12px;font:inherit;font-size:15px;background:#fff"><option value="">Loading names…</option></select>
+   <label style="font-size:12px;font-weight:700;color:#44546a;letter-spacing:.3px">4-DIGIT PIN</label>
+   <div id="pinrow" style="display:flex;gap:12px;justify-content:center;margin:10px 0 24px">${[0,1,2,3].map(i=>`<input class="pin" data-i="${i}" type="password" inputmode="numeric" maxlength="1" autocomplete="one-time-code" style="width:58px;height:66px;text-align:center;font-size:28px;font-weight:700;border:2px solid #c9d8d4;border-radius:14px;outline:none;background:#f8fbfa;color:#084a40;text-transform:none">`).join('')}</div>
+   <button id="lb2" onclick="pwLogin()" style="width:100%;padding:15px;border:0;border-radius:14px;background:linear-gradient(135deg,#0d6b5c,#084a40);color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 10px 24px #0d6b5c44">Sign in</button>
+   <p style="text-align:center;font-size:12px;color:#6b7a8c;margin:16px 0 0">This browser stays signed in for 30 days.</p>
+  </div></div>`;
+ pinBind();
  google.script.run.withSuccessHandler(a=>{const s=$('ln');if(s)s.innerHTML='<option value="">Select your name</option>'+a.map(n=>`<option>${esc(n)}</option>`).join('')}).withFailureHandler(()=>{const s=$('ln');if(s)s.innerHTML='<option value="">Could not load names</option>'}).loginList()
 }
+function pinBind(){
+ const pins=[...document.querySelectorAll('.pin')];
+ pins.forEach(el=>{
+  el.addEventListener('focus',()=>el.select());
+  el.addEventListener('input',()=>{el.value=el.value.replace(/\D/g,'').slice(0,1);if(el.value){const n=pins[+el.dataset.i+1];n?n.focus():$('lb2').focus()}});
+  el.addEventListener('keydown',e=>{if(e.key==='Backspace'&&!el.value){const p=pins[+el.dataset.i-1];if(p){p.value='';p.focus()}}if(e.key==='Enter')pwLogin()});
+  el.addEventListener('paste',e=>{e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,4);[...t].forEach((ch,i)=>{if(pins[i])pins[i].value=ch});const f=pins[Math.min(t.length,3)];if(f)f.focus()});
+ });
+ if(pins[0])pins[0].focus()
+}
 function pwLogin(){
- const n=$('ln').value,p=$('lp').value;if(!n||!p)return toast('Choose your name and enter your password');$('lb2').disabled=true;
- google.script.run.withSuccessHandler(t=>{ST.set(t);K=t;load()}).withFailureHandler(fail).loginPassword(n,p)
+ const n=$('ln').value,p=[...document.querySelectorAll('.pin')].map(x=>x.value).join('');
+ if(!n)return toast('Choose your name');
+ if(!/^\d{4}$/.test(p))return toast('Enter your 4-digit PIN');
+ $('lb2').disabled=true;
+ google.script.run.withSuccessHandler(t=>{ST.set(t);K=t;document.body.style.background='';load()}).withFailureHandler(e=>{$('lb2').disabled=false;fail(e);document.querySelectorAll('.pin').forEach(x=>x.value='');const f=document.querySelector('.pin');if(f)f.focus()}).loginPassword(n,p)
 }
 function signOut(){ST.set('');K='';D=null;loginScreen()}
 addEventListener('resize',()=>{const t=$('top');if(t)document.documentElement.style.setProperty('--th',t.offsetHeight+'px')});
