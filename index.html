@@ -3,7 +3,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
 /* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
-const API_URL='https://script.google.com/macros/s/AKfycbxXyMsxyjSo8BnNhx5mx6u8sedLyL92ojn5zNu6ZmCzXG393wEcy5oDiWjvSED4ar8e/exec';
+const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
 /* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
 const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
   const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
@@ -400,7 +400,7 @@ function fillLeads(){
  L.sort((x,y)=>rk(x)-rk(y)||(rk(x)==2?x.fin.Time.localeCompare(y.fin.Time):0));
  const tag={new:'',passed:'',carry:'',again:' <span class="tag w">Call again</span>'};
  $('rows').innerHTML=(past?'<div class="empty" style="padding:8px;text-align:left">History view: statuses as they were on '+esc(when())+'. Updates are only possible from Today.</div>':'')+(L.length?L.slice(0,300).map(w=>{const l=w.lead,ed=!past&&!w.st.End&&l.AssigneeEmail==me,cf=w.kind=='carry'?` <span class="tag w">Carried from ${dshort(w.st.Start)}</span>`:'';
-  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,ed?'Day '+dnum(w.st)+' of '+RD+' · Update '+(l.Updates||0)+' of '+RU:''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
+  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,ed?'Day '+dnum(w.st)+' of '+RD+' · Update '+(l.Updates||0):''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
 }
 let MXL=[];
 function exportLeadsXls(){if(!isM())return toast('Only admins can export');const L=MXL||[];if(!L.length)return toast('No leads to export');
@@ -418,7 +418,7 @@ function mrows(){
 }
 function fillPend(){
  const L=pendList().map(s=>({s,l:LD[s.LeadID]})).sort((a,b)=>b.s.Start.localeCompare(a.s.Start)*-1);
- $('dc').innerHTML=`<div class="sh" style="margin-top:0">${L.length} pending lead(s). Finish them before day ${RD}, or they move to the next recruiter.</div>`+(L.length?L.map(({s,l})=>{const left=RD-dnum(s);return leadCard(l,l,` <span class="tag w">Update ${l.Updates||0} of ${RU} · ${left>0?left+' day(s) left':'last day'}</span>`,[l.Project,l.Source,'Day '+dnum(s)+' of '+RD],`<button onclick="edit('${l.LeadID}')">Update</button>`)}).join(''):'<div class="empty">Nothing pending. Great work.</div>')
+ $('dc').innerHTML=`<div class="sh" style="margin-top:0">${L.length} pending lead(s). Finish them before day ${RD}, or they move to the next recruiter.</div>`+(L.length?L.map(({s,l})=>{const left=RD-dnum(s);return leadCard(l,l,` <span class="tag w">Update ${l.Updates||0} · ${left>0?left+' day(s) left':'last day'}</span>`,[l.Project,l.Source,'Day '+dnum(s)+' of '+RD],`<button onclick="edit('${l.LeadID}')">Update</button>`)}).join(''):'<div class="empty">Nothing pending. Great work.</div>')
 }
 function fillUnr(){
  const L=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed');
@@ -455,7 +455,7 @@ function addLead(){
  $('md').classList.add('on');$('an').focus()
 }
 function saveLead(){
- const n=$('an').value.trim(),p=$('ap').value.trim();if(!n||p.replace(/\D/g,'').length<10)return toast('Enter a name and a valid 10-digit phone number');
+ const n=$('an').value.trim(),p=$('ap').value.trim();if(p.replace(/\D/g,'').length<10)return toast('Enter a phone number with at least 10 digits (name is optional)');
  $('ab2').disabled=true;
  google.script.run.withSuccessHandler(id=>{F.pin=id;F.q='';F.st='';F.cs='';F.lf=F.lt=today();$('md').classList.remove('on');toast('Lead added');load()}).withFailureHandler(fail).addMyLead(K,n,p,$('as').value,$('aj').value)
 }
@@ -465,7 +465,7 @@ function edit(id){
  const used=+l.Updates||0,n=me?used:used+1,day=l.StintStart?wdiff(l.StintStart,today())+1:1,o=(a,v)=>a.map(s=>`<option ${s==v?'selected':''}>${s}</option>`).join('');
  $('bx').innerHTML=`<h3 class="nm">${esc(l.Name||'(no name)')}</h3><a class="ph" href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a><a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}">WhatsApp</a>
  <div class="f"><label>Name (add or correct)</label><input id="ln_name" value="${esc(l.Name)}" placeholder="ENTER NAME" maxlength="80"> <button class="ghost" style="margin-top:6px" onclick="saveLeadName('${id}')">Save name</button></div>
- <p class="ud">Update ${n} of ${RU} · Day ${day} of ${RD}${me?' · you can edit today\'s update until midnight':''}</p><div class="his" id="hs">Loading earlier updates…</div>
+ <p class="ud">Update ${n} · Day ${day} of ${RD}${me?' · you can edit today\'s update until midnight':''}</p><div class="his" id="hs">Loading earlier updates…</div>
  <div class="f"><label>Call status</label><select id="s" onchange="tc()"><option value="Not Called">Select call status</option>${o(D.statuses.filter(x=>x!='Not Called'),me?me.Status:'')}</select></div>
  <div class="f" id="cf"><label>Candidate status</label><select id="r"><option value="">Select</option>${o(D.cand,me?me.CandidateStatus:'')}</select></div>
  <div class="f"><label>Remark</label><textarea id="k" rows="3">${esc(me?me.Remark:'')}</textarea></div>
@@ -530,7 +530,7 @@ function add(){
 }
 function loginScreen(msg){
  $('who').textContent='';$('nav').innerHTML='';$('so').style.display='none';
- document.body.style.background='linear-gradient(160deg,#0a4d40 0%,#0d6b5c 42%,#eef5f3 42%)';
+ document.body.style.background='#eef5f3';
  $('main').innerHTML=`<div style="max-width:390px;margin:44px auto;background:#fff;border-radius:22px;box-shadow:0 24px 60px #0a3d3440;overflow:hidden">
   <div style="background:linear-gradient(135deg,#0d6b5c,#084a40);color:#fff;padding:28px 24px 26px;text-align:center">
    <div style="width:68px;height:68px;margin:0 auto 12px;border-radius:18px;background:#e8a33d;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#084a40;box-shadow:0 8px 20px #0003">G</div>
