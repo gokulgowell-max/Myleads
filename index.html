@@ -3,7 +3,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
 /* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
-const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
+const API_URL='https://script.google.com/macros/s/AKfycbxXyMsxyjSo8BnNhx5mx6u8sedLyL92ojn5zNu6ZmCzXG393wEcy5oDiWjvSED4ar8e/exec';
 /* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
 const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
   const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
@@ -127,8 +127,8 @@ function load(){google.script.run.withSuccessHandler(d=>{D=d;if(d.rules){RU=d.ru
 function draw(){
  $('who').innerHTML='Welcome, <b style="font-size:17px;font-weight:800;letter-spacing:.3px">'+esc(D.me.name)+'</b>';$('so').style.display=K?'':'none';
  const pn=pendList().length,un=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed').length;
- $('nav').innerHTML=(isM()?[['dash','Dashboard'],['leads','All leads'],['profs','Profiles'],['dist','Add & distribute'],['proj','Projects'],['unr','Unreachable'+(un?' ('+un+')':'')],['team','Team']]:[['leads','My leads'],['pend','Pending'+(pn?' ('+pn+')':'')],['profs','My profiles'],['hist','My calls']]).map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';draw()">${t[1]}</button>`).join('');
- $('main').innerHTML=tab=='dash'?dash():tab=='dist'?dist():tab=='team'?team():tab=='hist'?histPage():tab=='profs'?profsPage():tab=='pend'?'<div id="dc"></div>':(tab=='unr'||tab=='proj')?'<div id="dc"></div>':list();if(['leads','pend','dash','hist','unr','proj','profs'].includes(tab))withLog(fill);
+ $('nav').innerHTML=(isM()?[['dash','Dashboard'],['leads','All leads'],['profs','Profiles'],['dist','Add & distribute'],['proj','Projects'],['unr','Unreachable'+(un?' ('+un+')':'')],['team','Team'],['score','Scoreboard'],['cal','Calendar']]:[['leads','My leads'],['pend','Pending'+(pn?' ('+pn+')':'')],['profs','My profiles'],['hist','My calls']]).map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';draw()">${t[1]}</button>`).join('');
+ $('main').innerHTML=(tab=='score'||tab=='cal')?'<div id="dc"></div>':tab=='dash'?dash():tab=='dist'?dist():tab=='team'?team():tab=='hist'?histPage():tab=='profs'?profsPage():tab=='pend'?'<div id="dc"></div>':(tab=='unr'||tab=='proj')?'<div id="dc"></div>':list();if(['leads','pend','dash','hist','unr','proj','profs','score','cal'].includes(tab))withLog(fill);
  document.documentElement.style.setProperty('--th',$('top').offsetHeight+'px');
 }
 const wa=p=>{let d=String(p).replace(/\D/g,'');if(d.length==10)d='91'+d;else if(d.length==11&&d[0]=='0')d='91'+d.slice(1);return d};
@@ -149,8 +149,8 @@ function withLog(cb){
 }
 function asOf(st,day){let r=null;for(const e of LG[st.LeadID+'|'+st.Email]||[]){const t=e.Time.slice(0,10);if(t<st.Start)continue;if(st.End&&t>=st.End)break;if(t<=day)r=e;else break}return r}
 const stOf=r=>r?{Status:r.Status,CandidateStatus:r.CandidateStatus,Time:r.Time}:{Status:'Not Called',CandidateStatus:'',Time:''};
-const wdiff=(a,b)=>{let n=0,d=new Date(a+'T12:00:00');const e=new Date(b+'T12:00:00');while(d<e){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d<=e)n++}return n};
-const addW=(s,n)=>{let d=new Date(s+'T12:00:00'),k=0;while(k<n){d.setDate(d.getDate()+1);if(d.getDay()!==0)k++}return d.toLocaleDateString('en-CA')};
+const wdiff=(a,b)=>{let n=0,d=new Date(a+'T12:00:00');const e=new Date(b+'T12:00:00');while(d<e){d.setDate(d.getDate()+1);if(d<=e&&isWorkC(d.toLocaleDateString('en-CA'),D.me.email))n++}return n};
+const addW=(s,n)=>{let d=new Date(s+'T12:00:00'),k=0;while(k<n){d.setDate(d.getDate()+1);if(isWorkC(d.toLocaleDateString('en-CA'),D.me.email))k++}return d.toLocaleDateString('en-CA')};
 const dnum=st=>{const l=LD[st.LeadID],s=l&&!st.End&&l.AssigneeEmail==st.Email&&l.StintStart?addW(l.StintStart,+l.PauseDays||0):st.Start;return wdiff(s,today())+1};
 const PI=()=>new Set((D.projects||[]).filter(p=>!p.active).map(p=>p.name));
 const pendList=()=>SX.filter(s=>!s.End&&dnum(s)>=RP&&LD[s.LeadID]&&!PI().has(LD[s.LeadID].Project||'')&&LD[s.LeadID].AssigneeEmail==s.Email&&isOpen(LD[s.LeadID].Status,LD[s.LeadID].CandidateStatus));
@@ -173,6 +173,8 @@ function fill(){
  if(tab=='leads')fillLeads();
  else if(tab=='pend')fillPend();
  else if(tab=='unr')fillUnr();
+ else if(tab=='score')scoreFill();
+ else if(tab=='cal')calFill();
  else if(tab=='profs')fillProfiles();
  else if(tab=='proj')fillProj();
  else if(tab=='hist')$('dc').innerHTML=histBody();
@@ -565,6 +567,42 @@ function pwLogin(){
  $('lb2').disabled=true;
  google.script.run.withSuccessHandler(t=>{ST.set(t);K=t;document.body.style.background='';load()}).withFailureHandler(e=>{$('lb2').disabled=false;fail(e);document.querySelectorAll('.pin').forEach(x=>x.value='');const f=document.querySelector('.pin');if(f)f.focus()}).loginPassword(n,p)
 }
+let SCORE=null;
+function scoreFill(){
+ if(!isM())return;
+ $('dc').innerHTML=`<div class="fp">${dbar(false)}<div class="fr"><select id="se" onchange="F.se=this.value;scoreFill()"><option value="">All employees</option>${D.members.map(t=>`<option value="${esc(t.email)}" ${F.se==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select><select id="sp" onchange="F.sp=this.value;scoreFill()"><option value="">All projects</option>${(D.projects||[]).map(p=>`<option ${F.sp==p.name?'selected':''}>${esc(p.name)}</option>`).join('')}</select><button onclick="scoreXls()">Export Excel</button></div></div><div id="scbody"><div class="empty">Loading…</div></div>`;
+ google.script.run.withSuccessHandler(r=>{SCORE=r;$('scbody').innerHTML=scoreHTML(r)}).withFailureHandler(fail).getScoreboard(K,F.lf||'0000-00-00',F.lt||'9999-12-31',F.se||'',F.sp||'')
+}
+function scoreHTML(r){
+ const neg=v=>`<span style="color:${v<0?'#a8321f':'inherit'};font-weight:700">${v}</span>`;
+ const T=r.rows.reduce((a,x)=>a+x.Total,0);
+ return `<div class="kpis"><div class="kpi"><b>${r.rows.length}</b><small>People with points</small></div><div class="kpi"><b>${T}</b><small>Team total</small></div></div>
+ <div class="tw"><table><tr><th>Employee</th><th>Attempt (+5)</th><th>Connected (+10)</th><th>Profile (+20)</th><th>Submitted (+30)</th><th>Passed on (−5)</th><th>No attempt (−10)</th><th>Total</th></tr>${r.rows.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${x.Attempt}</td><td>${x.Connected}</td><td>${x.Profile}</td><td>${x.Submitted}</td><td>${x.Passed}</td><td>${x.NoAttempt}</td><td>${neg(x.Total)}</td></tr>`).join('')||'<tr><td colspan="8">No points in this range</td></tr>'}</table></div>
+ <h3>Points ledger</h3><div class="tw"><table><tr><th>Date</th><th>Employee</th><th>Lead</th><th>Project</th><th>Event</th><th>Points</th><th>Note</th></tr>${r.ledger.slice(0,300).map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.name)}</td><td>${esc(e.leadId)}</td><td>${esc(e.project)}</td><td>${esc(e.event)}</td><td>${neg(e.points)}</td><td style="white-space:normal;text-align:left">${esc(e.note)}</td></tr>`).join('')||'<tr><td colspan="7">No entries</td></tr>'}</table></div>`
+}
+function scoreXls(){
+ const R=(SCORE&&SCORE.rows)||[],L=(SCORE&&SCORE.ledger)||[];if(!R.length&&!L.length)return toast('Nothing to export');
+ const x=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const cell=v=>`<Cell><Data ss:Type="${typeof v==='number'?'Number':'String'}">${x(v)}</Data></Cell>`;
+ const sheet=(name,hdr,rows)=>`<Worksheet ss:Name="${name}"><Table><Row>${hdr.map(cell).join('')}</Row>${rows.map(r=>'<Row>'+r.map(cell).join('')+'</Row>').join('')}</Table></Worksheet>`;
+ const s1=sheet('Scoreboard',['Employee','Attempt','Connected','Profile','Submitted','Passed on','No attempt','Total'],R.map(r=>[r.name,r.Attempt,r.Connected,r.Profile,r.Submitted,r.Passed,r.NoAttempt,r.Total]));
+ const s2=sheet('Ledger',['Date','Employee','Lead','Project','Event','Points','Note'],L.map(e=>[e.date,e.name,e.leadId,e.project,e.event,e.points,e.note]));
+ const xml=`${'<'+'?'}xml version="1.0"?>${'<'+'?'}mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${s1}${s2}</Workbook>`;
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'application/vnd.ms-excel'}));a.download='scoreboard-'+today()+'.xls';a.click()
+}
+function isWorkC(ds,em){const rows=(D.calendar||[]).filter(x=>x.date===ds&&(!x.email||x.email===em));if(rows.some(x=>x.kind==='LEAVE'))return false;if(rows.some(x=>x.kind==='WORK'))return true;return new Date(ds+'T12:00:00').getDay()!==0}
+function calFill(){
+ if(!isM())return;
+ const ym=F.cm||today().slice(0,7),[y,m]=ym.split('-').map(Number),days=new Date(y,m,0).getDate(),ex=D.calendar||[];
+ let cells='';for(let i=0;i<new Date(y,m-1,1).getDay();i++)cells+='<div></div>';
+ for(let d=1;d<=days;d++){const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`,rows=ex.filter(x=>x.date===ds),work=isWorkC(ds,''),note=rows.map(x=>(x.kind=='WORK'?'Working':'Leave')+(x.email?' ('+esc(x.email)+')':' (team)')).join('<br>');
+  cells+=`<div onclick="calEdit('${ds}')" style="border:1px solid #d9e1ec;border-radius:10px;padding:8px;min-height:72px;cursor:pointer;background:${work?'#fff':'#fbeaea'}"><b>${d}</b><div style="font-size:12px;color:${work?'#0d6b5c':'#a8321f'}">${work?'Working':'Leave'}</div><div style="font-size:11px;color:#6b7a8c">${note}</div></div>`}
+ $('dc').innerHTML=`<div class="fp"><div class="fr"><button onclick="calMove(-1)">‹ Prev</button><b>${ym}</b><button onclick="calMove(1)">Next ›</button></div></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:10px">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<div style="text-align:center;font-weight:700;color:#5d6f69">${x}</div>`).join('')}${cells}</div><p style="color:#5d6f69;font-size:13px">Sundays are leave days unless marked as working. Click a day to change it.</p>`
+}
+function calMove(n){const [y,m]=(F.cm||today().slice(0,7)).split('-').map(Number);const d=new Date(y,m-1+n,1);F.cm=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');calFill()}
+function calEdit(ds){const sun=new Date(ds+'T12:00:00').getDay()===0;
+ $('bx').innerHTML=`<h3 class="nm" style="font-size:20px">${ds}</h3><div class="f">${sun?`<button onclick="calSet('${ds}','WORK','')">Working day (whole team)</button> `:''}<button class="ghost" onclick="calSet('${ds}','LEAVE','')">Leave (whole team)</button></div><div class="f"><label>One person</label><select id="ce">${D.members.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select> <button class="ghost" onclick="calSet('${ds}','LEAVE',$('ce').value)">Leave</button>${sun?` <button class="ghost" onclick="calSet('${ds}','WORK',$('ce').value)">Working day</button>`:''}</div><div class="f"><button class="ghost" style="color:var(--mute)" onclick="calSet('${ds}','CLEAR','')">Clear team note for this day</button></div><div class="row"><button class="ghost" onclick="closeP()">Close</button></div>`;$('md').classList.add('on')}
+function calSet(ds,kind,em){google.script.run.withSuccessHandler(()=>{toast('Calendar saved');closeP();load()}).withFailureHandler(fail).setCalendarDay(K,ds,kind,em,'')}
 function signOut(){ST.set('');K='';D=null;loginScreen()}
 addEventListener('resize',()=>{const t=$('top');if(t)document.documentElement.style.setProperty('--th',t.offsetHeight+'px')});
 load();
