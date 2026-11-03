@@ -416,7 +416,7 @@ function mrows(){
  const q=F.q.toLowerCase(),L=D.leads.filter(l=>l.Unreachable!=''?false:(!q||(l.Name+l.Phone).toLowerCase().includes(q))&&(!F.st||l.Status==F.st)&&(!F.cs||l.CandidateStatus==F.cs)&&inView(l)&&(!F.proj||l.Project==F.proj)&&(!F.emp||(F.emp=='_un'?!l.AssigneeEmail:l.AssigneeEmail==F.emp)));
  L.sort((x,y)=>y.Updated.localeCompare(x.Updated));
  MXL=L;
- return L.length?L.slice(0,300).map(l=>leadCard(l,l,(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(PI().has(l.Project||'')?' <span class="tag b">Project off</span>':'')+(l.Round>1?' <span class="tag w">Round '+l.Round+'</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,l.AssignedTo||'Unassigned',l.Calls>0?l.Calls+' update(s), last '+l.Updated.slice(0,16):'Assigned '+l.AssignedAt.slice(0,16)],l.AssigneeEmail?`<button onclick="edit('${l.LeadID}')">Update</button>`:'',`<input type="checkbox" ${sel.has(l.LeadID)?'checked':''} onchange="this.checked?sel.add('${l.LeadID}'):sel.delete('${l.LeadID}')" aria-label="Select">`)).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>'
+ return L.length?L.slice(0,300).map(l=>leadCard(l,l,(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(PI().has(l.Project||'')?' <span class="tag b">Project off</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,l.AssignedTo||'Unassigned',l.Calls>0?l.Calls+' update(s), last '+l.Updated.slice(0,16):'Assigned '+l.AssignedAt.slice(0,16)],l.AssigneeEmail?`<button onclick="edit('${l.LeadID}')">Update</button>`:'',`<input type="checkbox" ${sel.has(l.LeadID)?'checked':''} onchange="this.checked?sel.add('${l.LeadID}'):sel.delete('${l.LeadID}')" aria-label="Select">`)).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>'
 }
 function fillPend(){
  const L=pendList().map(s=>({s,l:LD[s.LeadID]})).sort((a,b)=>b.s.Start.localeCompare(a.s.Start)*-1);
@@ -478,6 +478,12 @@ function edit(id){
 }
 function saveLeadName(id){const v=($('ln_name').value||'').trim();if(!v)return toast('Enter a name');google.script.run.withSuccessHandler(()=>{const l=D.leads.find(x=>x.LeadID==id);if(l)l.Name=v;toast('Name saved');try{fill()}catch(e){}}).withFailureHandler(fail).setLeadName(K,id,v)}
 function tc(){const on=$('s').value=='Call Connected',r=$('r');r.disabled=!on;if(!on)r.value=''}
+function applyLocalLog(id,owner,s,c,k,time,round,no){
+ const day=time.slice(0,10),l=LD[id]||{},e={Time:time,LeadID:id,Name:l.Name||'',Employee:l.AssignedTo||'',EmployeeEmail:owner,Status:s,CandidateStatus:c,Remark:k,Round:round,UpdateNo:no};
+ const key=id+'|'+owner;
+ LG[key]=(LG[key]||[]).filter(x=>!(x.Time.slice(0,10)===day&&x.Round==round)).concat([e]).sort((a,b)=>a.Time.localeCompare(b.Time));
+ DL=DL.filter(x=>!(x.LeadID===id&&x.EmployeeEmail===owner&&x.Time.slice(0,10)===day&&x.Round==round)).concat([e]);
+}
 function refreshSilent(){google.script.run.withSuccessHandler(d=>{D=d;SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;withLog(()=>{try{fill()}catch(e){}})}).withFailureHandler(()=>{}).getData(K)}
 function save(id){
  const s=$('s').value,r=s=='Call Connected'?$('r').value:'';if(s=='Not Called')return toast('Pick the call status');if(s=='Call Connected'&&!r)return toast('Pick the candidate status');
@@ -485,7 +491,7 @@ function save(id){
  if(l){l.Status=s;l.CandidateStatus=r;l.Remark=k;F.pin=id}
  $('md').classList.remove('on');toast('Saved');
  try{fill()}catch(e){}
- google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1}refreshSilent()}).withFailureHandler(e=>{if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e)}).saveCall(K,id,s,r,k,'')
+ google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1;applyLocalLog(id,l.AssigneeEmail,s,r,k,res.updated,res.round,res.no)}try{fill()}catch(e){}}).withFailureHandler(e=>{if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e)}).saveCall(K,id,s,r,k,'')
 }
 function bulk(){
  if(!sel.size)return toast('Select leads first');const t=$('bt').value;if(!t)return toast('Choose who to assign to');
@@ -605,5 +611,6 @@ function calEdit(ds){const sun=new Date(ds+'T12:00:00').getDay()===0;
 function calSet(ds,kind,em){google.script.run.withSuccessHandler(()=>{toast('Calendar saved');closeP();load()}).withFailureHandler(fail).setCalendarDay(K,ds,kind,em,'')}
 function signOut(){ST.set('');K='';D=null;loginScreen()}
 addEventListener('resize',()=>{const t=$('top');if(t)document.documentElement.style.setProperty('--th',t.offsetHeight+'px')});
+setInterval(()=>{if(!document.hidden&&K&&D&&!$('md').classList.contains('on'))refreshSilent()},60000);
 load();
 </script></body></html>
