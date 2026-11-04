@@ -3,7 +3,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
 /* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
-const API_URL='https://script.google.com/macros/s/AKfycbxXyMsxyjSo8BnNhx5mx6u8sedLyL92ojn5zNu6ZmCzXG393wEcy5oDiWjvSED4ar8e/exec';
+const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
 /* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
 const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
   const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
@@ -222,8 +222,8 @@ function statCards(L,sub){
 function list(){
  const sl=(k,all,arr)=>`<select class="cv" onchange="F.${k}=this.value;fillLeads()"><option value="">${all}</option>${arr.map(s=>`<option ${F[k]==s?'selected':''}>${s}</option>`).join('')}</select>`;
  const emp=isM()?`<select class="cv" onchange="F.emp=this.value;fillLeads()"><option value="">All employees</option><option value="_un" ${F.emp=='_un'?'selected':''}>Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}" ${F.emp==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:'';
- let h=`<div class="stk${F.col?' col':''}">`+(isM()?'':'<div class="cv" id="lcards"></div>')+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${emp}</div></div></div>`;
- if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><button onclick="bulk()">Assign selected</button></div>`;
+ let h=`<div class="stk${F.col?' col':''}">`+(isM()?'':'<div class="cv" id="lcards"></div>')+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${isM()?srcSel():''}${emp}</div></div></div>`;
+ if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><label style="display:flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap"><input type="checkbox" id="selall" style="width:18px;height:18px" onchange="selAll(this.checked)"> Select all</label><span id="selcount" style="color:var(--mute)"></span><button onclick="bulk()">Assign selected</button></div>`;
  return h+'<div id="rows"></div>'
 }
 const leadCard=(l,fin,tags,meta,btn,chk)=>`<div class="lead">${chk||'<span></span>'}
@@ -393,7 +393,7 @@ function closeP(){$('md').classList.remove('on');$('bx').style.maxWidth=''}
 
 function fillLeads(){
  const PM=PMap();
- if(isM()){$('rows').innerHTML=mrows();return}
+ if(isM()){$('rows').innerHTML=mrows();updSel();return}
  const me=D.me.email,W=wset(me),c=k=>cnt(W,k),pn=pendList().length;
  $('lcards').innerHTML=statCards(W.map(w=>w.fin),[['New',c('new')+c('passed')],['Carried forward',c('carry')],['Call again',c('again')],['Pending',pn],['Profiles created',profsIn(me).length]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · '));
  const q=F.q.toLowerCase(),T=F.lt&&F.lt<today()?F.lt:today(),past=!!F.lt&&F.lt<today();
@@ -402,21 +402,23 @@ function fillLeads(){
  L.sort((x,y)=>rk(x)-rk(y)||(rk(x)==2?x.fin.Time.localeCompare(y.fin.Time):0));
  const tag={new:'',passed:'',carry:'',again:' <span class="tag w">Call again</span>'};
  $('rows').innerHTML=(past?'<div class="empty" style="padding:8px;text-align:left">History view: statuses as they were on '+esc(when())+'. Updates are only possible from Today.</div>':'')+(L.length?L.slice(0,300).map(w=>{const l=w.lead,ed=!past&&!w.st.End&&l.AssigneeEmail==me,cf=w.kind=='carry'?` <span class="tag w">Carried from ${dshort(w.st.Start)}</span>`:'';
-  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,ed?'Day '+dnum(w.st)+' of '+RD+' · Update '+(l.Updates||0):''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
+  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Category,ed?'Day '+dnum(w.st)+' of '+RD+' · Update '+(l.Updates||0):''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
 }
 let MXL=[];
 function exportLeadsXls(){if(!isM())return toast('Only admins can export');const L=MXL||[];if(!L.length)return toast('No leads to export');
- const cols=[['Lead ID',l=>l.LeadID],['Name',l=>l.Name],['Phone',l=>l.Phone],['Project',l=>l.Project],['Source',l=>l.Source],['Assigned to',l=>l.AssignedTo],['Round',l=>l.Round],['Call status',l=>l.Status],['Candidate status',l=>l.CandidateStatus],['Updates',l=>l.Calls],['Remark',l=>l.Remark],['Assigned on',l=>l.AssignedAt],['Last updated',l=>l.Updated],['Unreachable',l=>l.Unreachable]];
+ const cols=[['Lead ID',l=>l.LeadID],['Name',l=>l.Name],['Phone',l=>l.Phone],['Project',l=>l.Project],['Source',l=>l.Source],['Email',l=>l.Email],['Category',l=>l.Category],['Assigned to',l=>l.AssignedTo],['Round',l=>l.Round],['Call status',l=>l.Status],['Candidate status',l=>l.CandidateStatus],['Updates',l=>l.Calls],['Remark',l=>l.Remark],['Assigned on',l=>l.AssignedAt],['Last updated',l=>l.Updated],['Unreachable',l=>l.Unreachable]];
  const x=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
  const cell=v=>`<Cell><Data ss:Type="${typeof v==='number'?'Number':'String'}">${x(v)}</Data></Cell>`;
  const xml=`${'<'+'?'}xml version="1.0"?>${'<'+'?'}mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Leads"><Table><Row>${cols.map(c=>cell(c[0])).join('')}</Row>${L.map(l=>'<Row>'+cols.map(c=>cell(c[1](l))).join('')+'</Row>').join('')}</Table></Worksheet></Workbook>`;
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'application/vnd.ms-excel'}));a.download='leads-'+today()+'.xls';a.click()}
+function updSel(){const L=MXL||[],n=L.filter(l=>sel.has(l.LeadID)).length,c=$('selall'),t=$('selcount');if(c)c.checked=L.length>0&&n===L.length;if(t)t.textContent=sel.size?sel.size+' selected':''}
+function selAll(on){(MXL||[]).forEach(l=>on?sel.add(l.LeadID):sel.delete(l.LeadID));fillLeads()}
 function mrows(){
  const PM=PMap();
- const q=F.q.toLowerCase(),L=D.leads.filter(l=>l.Unreachable!=''?false:(!q||(l.Name+l.Phone).toLowerCase().includes(q))&&(!F.st||l.Status==F.st)&&(!F.cs||l.CandidateStatus==F.cs)&&inView(l)&&(!F.proj||l.Project==F.proj)&&(!F.emp||(F.emp=='_un'?!l.AssigneeEmail:l.AssigneeEmail==F.emp)));
+ const q=F.q.toLowerCase(),L=D.leads.filter(l=>l.Unreachable!=''?false:(!q||(l.Name+l.Phone).toLowerCase().includes(q))&&(!F.st||l.Status==F.st)&&(!F.cs||l.CandidateStatus==F.cs)&&inView(l)&&(!F.proj||l.Project==F.proj)&&(!F.src||l.Source==F.src)&&(!F.emp||(F.emp=='_un'?!l.AssigneeEmail:l.AssigneeEmail==F.emp)));
  L.sort((x,y)=>y.Updated.localeCompare(x.Updated));
  MXL=L;
- return L.length?L.slice(0,300).map(l=>leadCard(l,l,(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(PI().has(l.Project||'')?' <span class="tag b">Project off</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Source,l.AssignedTo||'Unassigned',l.Calls>0?l.Calls+' update(s), last '+l.Updated.slice(0,16):'Assigned '+l.AssignedAt.slice(0,16)],l.AssigneeEmail?`<button onclick="edit('${l.LeadID}')">Update</button>`:'',`<input type="checkbox" ${sel.has(l.LeadID)?'checked':''} onchange="this.checked?sel.add('${l.LeadID}'):sel.delete('${l.LeadID}')" aria-label="Select">`)).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>'
+ return L.length?L.slice(0,300).map(l=>leadCard(l,l,(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(PI().has(l.Project||'')?' <span class="tag b">Project off</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Category,l.Source,l.AssignedTo||'Unassigned',l.Calls>0?l.Calls+' update(s), last '+l.Updated.slice(0,16):'Assigned '+l.AssignedAt.slice(0,16)],l.AssigneeEmail?`<button onclick="edit('${l.LeadID}')">Update</button>`:'',`<input type="checkbox" ${sel.has(l.LeadID)?'checked':''} onchange="this.checked?sel.add('${l.LeadID}'):sel.delete('${l.LeadID}');updSel()" aria-label="Select">`)).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>'
 }
 function fillPend(){
  const L=pendList().map(s=>({s,l:LD[s.LeadID]})).sort((a,b)=>b.s.Start.localeCompare(a.s.Start)*-1);
@@ -525,7 +527,7 @@ function delM(e){
 function dist(){
  return `<div class="panel"><h3 style="margin-top:0">Add &amp; distribute leads</h3>
  <div class="f"><label>Project (active projects only)</label><select id="pj"><option value="">Select project</option>${(D.projects||[]).filter(p=>p.active).map(p=>`<option>${esc(p.name)}</option>`).join('')}</select>${(D.projects||[]).some(p=>p.active)?'':'<small style="color:var(--mute)">No active project. Create one in the Projects tab first.</small>'}</div>
- <div class="f"><label>Leads: one per line as Name, Phone, Source (paste from Excel)</label><textarea id="t" placeholder="Anu Thomas, 9876543210, Facebook"></textarea></div>
+ <div class="f"><label>Leads: paste from the template (Name, Number, Email, Category, Lead source)</label><div style="font-size:12px;color:var(--mute);margin-bottom:6px">Only the Number is required. Lead source is visible to admins only.</div><button class="ghost" style="color:var(--pri);margin-bottom:8px" onclick="leadTemplate()">Download template (CSV)</button><textarea id="t" placeholder="Name, Number, Email, Category, Lead source"></textarea></div>
  <div class="f"><label>Recruiters (leads are shared equally, round robin)</label><div id="rc">${D.team.map(t=>`<label style="display:block;color:var(--ink);font-size:15px"><input type="checkbox" value="${esc(t.email)}" style="width:auto"> ${esc(t.name)}</label>`).join('')}</div>
  <button class="ghost" style="color:var(--pri);margin-top:6px" onclick="document.querySelectorAll('#rc input').forEach(c=>c.checked=true)">Select all</button></div>
  <div class="row"><button id="ab" onclick="add()">Distribute leads</button></div></div>`
@@ -577,8 +579,13 @@ let SCORE=null;
 function scoreFill(){
  if(!isM())return;
  $('dc').innerHTML=`<div class="fp">${dbar(false)}<div class="fr"><select id="se" onchange="F.se=this.value;scoreFill()"><option value="">All employees</option>${D.members.map(t=>`<option value="${esc(t.email)}" ${F.se==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select><select id="sp" onchange="F.sp=this.value;scoreFill()"><option value="">All projects</option>${(D.projects||[]).map(p=>`<option ${F.sp==p.name?'selected':''}>${esc(p.name)}</option>`).join('')}</select><button onclick="scoreXls()">Export Excel</button></div></div><div id="scbody"><div class="empty">Loading…</div></div>`;
- google.script.run.withSuccessHandler(r=>{SCORE=r;$('scbody').innerHTML=scoreHTML(r)}).withFailureHandler(fail).getScoreboard(K,F.lf||'0000-00-00',F.lt||'9999-12-31',F.se||'',F.sp||'')
+ google.script.run.withSuccessHandler(r=>{SCORE=r;$('scbody').innerHTML=scoreHTML(r)+sourceHTML()}).withFailureHandler(fail).getScoreboard(K,F.lf||'0000-00-00',F.lt||'9999-12-31',F.se||'',F.sp||'')
 }
+const srcSel=()=>`<select onchange="F.src=this.value;fillLeads()"><option value="">All sources</option>${[...new Set(D.leads.map(l=>l.Source).filter(Boolean))].sort().map(s=>`<option ${F.src==s?'selected':''}>${esc(s)}</option>`).join('')}</select>`;
+function leadTemplate(){const csv='Name,Number,Email,Category,Lead source\n'+'Anu Thomas,9876543210,anu@example.com,Nurse,Facebook\n'+',9123456780,,Doctor,Walk-in\n';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='lead-template.csv';a.click()}
+function sourceHTML(){const P=F.sp||'';const L=D.leads.filter(l=>!P||l.Project==P);const g={};L.forEach(l=>{const s=l.Source||'(no source)';const b=g[s]=g[s]||{n:0,c:0,i:0,s:0};b.n++;if(l.Status=='Call Connected'||l.CandidateStatus)b.c++;if(l.CandidateStatus=='Interested')b.i++;if(l.CandidateStatus=='Submitted')b.s++});
+ const rows=Object.entries(g).sort((a,b)=>b[1].n-a[1].n),pc=(x,n)=>n?Math.round(x/n*100)+'%':'-';
+ return `<h3>Lead source quality${P?' · '+esc(P):''}</h3><p style="color:var(--mute);font-size:13px;margin:0 0 8px">Connected means the lead is connected now or has a candidate status.</p><div class="tw"><table><tr><th>Source</th><th>Leads</th><th>Connected</th><th>Connect %</th><th>Interested</th><th>Interested %</th><th>Submitted</th><th>Submitted %</th></tr>${rows.map(([s,b])=>`<tr><td><b>${esc(s)}</b></td><td>${b.n}</td><td>${b.c}</td><td>${pc(b.c,b.n)}</td><td>${b.i}</td><td>${pc(b.i,b.n)}</td><td>${b.s}</td><td>${pc(b.s,b.n)}</td></tr>`).join('')||'<tr><td colspan="8">No leads</td></tr>'}</table></div>`}
 function scoreHTML(r){
  const neg=v=>`<span style="color:${v<0?'#a8321f':'inherit'};font-weight:700">${v}</span>`;
  const T=r.rows.reduce((a,x)=>a+x.Total,0);
