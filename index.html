@@ -3,7 +3,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
 /* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
-const API_URL='https://script.google.com/macros/s/AKfycbxXyMsxyjSo8BnNhx5mx6u8sedLyL92ojn5zNu6ZmCzXG393wEcy5oDiWjvSED4ar8e/exec';
+const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
 /* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
 const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
   const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
@@ -223,7 +223,7 @@ function list(){
  const sl=(k,all,arr)=>`<select class="cv" onchange="F.${k}=this.value;fillLeads()"><option value="">${all}</option>${arr.map(s=>`<option ${F[k]==s?'selected':''}>${s}</option>`).join('')}</select>`;
  const emp=isM()?`<select class="cv" onchange="F.emp=this.value;fillLeads()"><option value="">All employees</option><option value="_un" ${F.emp=='_un'?'selected':''}>Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}" ${F.emp==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:'';
  let h=`<div class="stk${F.col?' col':''}">`+(isM()?'':'<div class="cv" id="lcards"></div>')+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${isM()?srcSel():''}${emp}</div></div></div>`;
- if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><label style="display:flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap"><input type="checkbox" id="selall" style="width:18px;height:18px" onchange="selAll(this.checked)"> Select all</label><span id="selcount" style="color:var(--mute)"></span><button onclick="bulk()">Assign selected</button></div>`;
+ if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><label style="display:flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap"><input type="checkbox" id="selall" style="width:18px;height:18px" onchange="selAll(this.checked)"> Select all</label><span id="selcount" style="color:var(--mute)"></span><button onclick="bulk()">Assign selected</button><button class="ghost" style="color:var(--bad)" onclick="bulkDel()">Delete selected</button></div>`;
  return h+'<div id="rows"></div>'
 }
 const leadCard=(l,fin,tags,meta,btn,chk)=>`<div class="lead">${chk||'<span></span>'}
@@ -397,7 +397,7 @@ function fillLeads(){
  const me=D.me.email,W=wset(me),c=k=>cnt(W,k),pn=pendList().length;
  $('lcards').innerHTML=statCards(W.map(w=>w.fin),[['New',c('new')+c('passed')],['Carried forward',c('carry')],['Call again',c('again')],['Pending',pn],['Profiles created',profsIn(me).length]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · '));
  const q=F.q.toLowerCase(),T=F.lt&&F.lt<today()?F.lt:today(),past=!!F.lt&&F.lt<today();
- const L=W.filter(w=>(!q||((w.lead.Name||'')+(w.lead.Phone||'')).toLowerCase().includes(q))&&(!F.st||w.fin.Status==F.st)&&(!F.cs||w.fin.CandidateStatus==F.cs)&&(!F.proj||w.lead.Project==F.proj));
+ const L=W.filter(w=>(!q||matchQ(w.lead,q))&&(!F.st||w.fin.Status==F.st)&&(!F.cs||w.fin.CandidateStatus==F.cs)&&(!F.proj||w.lead.Project==F.proj));
  const done=w=>w.fin.Time&&w.fin.Time.slice(0,10)==T,top=L.filter(done).reduce((p,w)=>!p||w.fin.Time>=p.fin.Time?w:p,null),rk=w=>w.lead.LeadID===F.pin?-1:w===top?0:done(w)?2:1;
  L.sort((x,y)=>rk(x)-rk(y)||(rk(x)==2?x.fin.Time.localeCompare(y.fin.Time):0));
  const tag={new:'',passed:'',carry:'',again:' <span class="tag w">Call again</span>'};
@@ -413,9 +413,15 @@ function exportLeadsXls(){if(!isM())return toast('Only admins can export');const
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'application/vnd.ms-excel'}));a.download='leads-'+today()+'.xls';a.click()}
 function updSel(){const L=MXL||[],n=L.filter(l=>sel.has(l.LeadID)).length,c=$('selall'),t=$('selcount');if(c)c.checked=L.length>0&&n===L.length;if(t)t.textContent=sel.size?sel.size+' selected':''}
 function selAll(on){(MXL||[]).forEach(l=>on?sel.add(l.LeadID):sel.delete(l.LeadID));fillLeads()}
+function matchQ(l,q){
+ const t=(String(l.Name||'')+' '+String(l.Phone||'')).toLowerCase();if(t.includes(q))return true;
+ const qd=q.replace(/\D/g,'');if(qd.length<4)return false;
+ const pd=String(l.Phone||'').replace(/\D/g,'');
+ return pd.includes(qd)||(qd.length>=10&&pd.length>=10&&pd.slice(-10)===qd.slice(-10));
+}
 function mrows(){
  const PM=PMap();
- const q=F.q.toLowerCase(),L=D.leads.filter(l=>l.Unreachable!=''?false:(!q||(l.Name+l.Phone).toLowerCase().includes(q))&&(!F.st||l.Status==F.st)&&(!F.cs||l.CandidateStatus==F.cs)&&inView(l)&&(!F.proj||l.Project==F.proj)&&(!F.src||l.Source==F.src)&&(!F.emp||(F.emp=='_un'?!l.AssigneeEmail:l.AssigneeEmail==F.emp)));
+ const q=F.q.toLowerCase(),L=D.leads.filter(l=>l.Unreachable!=''?false:(!q||matchQ(l,q))&&(!F.st||l.Status==F.st)&&(!F.cs||l.CandidateStatus==F.cs)&&inView(l)&&(!F.proj||l.Project==F.proj)&&(!F.src||l.Source==F.src)&&(!F.emp||(F.emp=='_un'?!l.AssigneeEmail:l.AssigneeEmail==F.emp)));
  L.sort((x,y)=>y.Updated.localeCompare(x.Updated));
  MXL=L;
  return L.length?L.slice(0,300).map(l=>leadCard(l,l,(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(PI().has(l.Project||'')?' <span class="tag b">Project off</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Category,l.Source,l.AssignedTo||'Unassigned',l.Calls>0?l.Calls+' update(s), last '+l.Updated.slice(0,16):'Assigned '+l.AssignedAt.slice(0,16)],l.AssigneeEmail?`<button onclick="edit('${l.LeadID}')">Update</button>`:'',`<input type="checkbox" ${sel.has(l.LeadID)?'checked':''} onchange="this.checked?sel.add('${l.LeadID}'):sel.delete('${l.LeadID}');updSel()" aria-label="Select">`)).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>'
@@ -459,7 +465,7 @@ function addLead(){
  $('md').classList.add('on');$('an').focus()
 }
 function saveLead(){
- const n=$('an').value.trim(),p=$('ap').value.trim();if(p.replace(/\D/g,'').length<10)return toast('Enter a phone number with at least 10 digits (name is optional)');
+ const n=$('an').value.trim(),p=$('ap').value.trim();if(n&&!/^[A-Za-z][A-Za-z .'\-]*$/.test(n))return toast('Name must contain letters only');if(p.replace(/\D/g,'').length<10)return toast('Enter a phone number with at least 10 digits (name is optional)');
  $('ab2').disabled=true;
  google.script.run.withSuccessHandler(id=>{F.pin=id;F.q='';F.st='';F.cs='';F.lf=F.lt=today();$('md').classList.remove('on');toast('Lead added');load()}).withFailureHandler(fail).addMyLead(K,n,p,$('as').value,$('aj').value)
 }
@@ -478,7 +484,7 @@ function edit(id){
  google.script.run.withSuccessHandler(h=>{const r=h.filter(e=>e.Round==(+l.Round||1)&&!(e.Time.slice(0,10)==today()&&e.Round==(+l.Round||1))).sort((a,b)=>a.Time.localeCompare(b.Time));
   if($('hs'))$('hs').innerHTML=r.length?'<b>Earlier updates (locked)</b>'+r.map(e=>`<div>${e.Time.slice(0,10)} · ${e.Round==(+l.Round||1)?'You':'Earlier recruiter'} · update ${e.UpdateNo||'-'} · ${esc(e.Status)}${e.CandidateStatus?' / '+esc(e.CandidateStatus):''}${e.Remark?' — '+esc(e.Remark):''}</div>`).join(''):'No earlier updates'}).withFailureHandler(()=>{if($('hs'))$('hs').textContent='Could not load earlier updates'}).getHistory(K,id)
 }
-function saveLeadName(id){const v=($('ln_name').value||'').trim();if(!v)return toast('Enter a name');google.script.run.withSuccessHandler(()=>{const l=D.leads.find(x=>x.LeadID==id);if(l)l.Name=v;toast('Name saved');try{fill()}catch(e){}}).withFailureHandler(fail).setLeadName(K,id,v)}
+function saveLeadName(id){const v=($('ln_name').value||'').trim();if(!v)return toast('Enter a name');if(!/^[A-Za-z][A-Za-z .'\-]*$/.test(v))return toast('Name must contain letters only');google.script.run.withSuccessHandler(()=>{const l=D.leads.find(x=>x.LeadID==id);if(l)l.Name=v;toast('Name saved');try{fill()}catch(e){}}).withFailureHandler(fail).setLeadName(K,id,v)}
 function tc(){const on=$('s').value=='Call Connected',r=$('r');r.disabled=!on;if(!on)r.value=''}
 function applyLocalLog(id,owner,s,c,k,time,round,no){
  const day=time.slice(0,10),l=LD[id]||{},e={Time:time,LeadID:id,Name:l.Name||'',Employee:l.AssignedTo||'',EmployeeEmail:owner,Status:s,CandidateStatus:c,Remark:k,Round:round,UpdateNo:no};
@@ -488,16 +494,22 @@ function applyLocalLog(id,owner,s,c,k,time,round,no){
 }
 function refreshSilent(){google.script.run.withSuccessHandler(d=>{D=d;SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;withLog(()=>{try{fill()}catch(e){}})}).withFailureHandler(()=>{}).getData(K)}
 function save(id){
+ window._saving=true;setTimeout(()=>{window._saving=false},8000);
  const s=$('s').value,r=s=='Call Connected'?$('r').value:'';if(s=='Not Called')return toast('Pick the call status');if(s=='Call Connected'&&!r)return toast('Pick the candidate status');
  const l=D.leads.find(x=>x.LeadID==id),prev=l?Object.assign({},l):null,k=$('k').value;
  if(l){l.Status=s;l.CandidateStatus=r;l.Remark=k;F.pin=id}
  $('md').classList.remove('on');toast('Saved');
  try{fill()}catch(e){}
- google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1;applyLocalLog(id,l.AssigneeEmail,s,r,k,res.updated,res.round,res.no)}try{fill()}catch(e){}}).withFailureHandler(e=>{if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e)}).saveCall(K,id,s,r,k,'')
+ google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1;applyLocalLog(id,l.AssigneeEmail,s,r,k,res.updated,res.round,res.no)}try{fill()}catch(e){}}).withFailureHandler(e=>{if(/Lock timeout/i.test(String(e.message))){setTimeout(()=>google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1;applyLocalLog(id,l.AssigneeEmail,s,r,k,res.updated,res.round,res.no)}try{fill()}catch(x){}}).withFailureHandler(e2=>{if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e2)}).saveCall(K,id,s,r,k,''),2000);toast('Server busy, retrying…');return}if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e)}).saveCall(K,id,s,r,k,'')
 }
 function bulk(){
  if(!sel.size)return toast('Select leads first');const t=$('bt').value;if(!t)return toast('Choose who to assign to');
  google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) moved');sel.clear();load()}).withFailureHandler(fail).assign(K,[...sel],t=='_un'?'':t)
+}
+function bulkDel(){
+ if(!sel.size)return toast('Select leads first');
+ if(!confirm('Permanently delete '+sel.size+' lead(s)?\nThis cannot be undone. Call history stays in the records.'))return;
+ google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) deleted');sel.clear();load()}).withFailureHandler(fail).deleteLeads(K,[...sel])
 }
 function team(){
  const cnt=e=>D.leads.filter(l=>l.AssigneeEmail==e).length,B=(c,t,f)=>`<button class="ghost" style="color:${c}" onclick="${f}">${t}</button>`;
@@ -536,7 +548,22 @@ function add(){
  const t=$('t').value.trim(),p=$('pj').value.trim(),e=[...document.querySelectorAll('#rc input:checked')].map(c=>c.value);
  if(!p)return toast('Enter a project name');if(!t)return toast('Paste some leads first');if(!e.length)return toast('Select at least one recruiter');
  $('ab').disabled=true;
- google.script.run.withSuccessHandler(r=>{toast(r.added+' added. Skipped: '+(r.dup||0)+' duplicate in this project, '+(r.short||0)+' with fewer than 10 digits');tab='leads';F.proj=p;load()}).withFailureHandler(fail).addLeads(K,t,e,p)
+ google.script.run.withSuccessHandler(r=>{$('ab').disabled=false;F.proj=p;tab='leads';showReport(r);load()}).withFailureHandler(e2=>{$('ab').disabled=false;fail(e2)}).addLeads(K,t,e,p)
+}
+function showReport(r){
+ const rows=r.report||[],cls={added:'ok',duplicate:'w',short:'b',badname:'b'},lbl={added:'Added',duplicate:'Duplicate',short:'Less than 10 digits',badname:'Name has numbers or symbols'};
+ window._rep=rows;
+ $('bx').style.maxWidth='920px';
+ $('bx').innerHTML=`<h3 class="nm" style="font-size:22px">Distribution report</h3>
+ <div class="kpis"><div class="kpi"><b>${r.added+(r.dup||0)+(r.short||0)+(r.badName||0)}</b><small>Total lines</small></div><div class="kpi"><b>${r.added}</b><small>Added</small></div><div class="kpi"><b>${r.dup||0}</b><small>Duplicate</small></div><div class="kpi"><b>${r.short||0}</b><small>Less than 10 digits</small></div><div class="kpi"><b>${r.badName||0}</b><small>Name not letters only</small></div></div>
+ <div style="max-height:55vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><table style="min-width:0"><tr><th>Line</th><th>Name</th><th>Number</th><th>Result</th><th style="text-align:left">Detail</th></tr>${rows.map(x=>`<tr><td>${x.line}</td><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td><span class="tag ${cls[x.result]}">${lbl[x.result]}</span></td><td style="white-space:normal;text-align:left">${esc(x.detail)}</td></tr>`).join('')||'<tr><td colspan="5">Nothing to report</td></tr>'}</table></div>
+ <div class="row"><button class="ghost" onclick="dlReport()">Download report (CSV)</button><button onclick="closeP()">Close</button></div>`;
+ $('md').classList.add('on')
+}
+function dlReport(){
+ const rows=window._rep||[],q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+ const csv=['Line,Name,Number,Result,Detail'].concat(rows.map(x=>[x.line,x.name,x.phone,x.result,x.detail].map(q).join(','))).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='distribution-report-'+today()+'.csv';a.click()
 }
 function loginScreen(msg){
  $('who').textContent='';$('nav').innerHTML='';$('so').style.display='none';
@@ -618,6 +645,6 @@ function calEdit(ds){const sun=new Date(ds+'T12:00:00').getDay()===0;
 function calSet(ds,kind,em){google.script.run.withSuccessHandler(()=>{toast('Calendar saved');closeP();load()}).withFailureHandler(fail).setCalendarDay(K,ds,kind,em,'')}
 function signOut(){ST.set('');K='';D=null;loginScreen()}
 addEventListener('resize',()=>{const t=$('top');if(t)document.documentElement.style.setProperty('--th',t.offsetHeight+'px')});
-setInterval(()=>{if(!document.hidden&&K&&D&&!$('md').classList.contains('on'))refreshSilent()},60000);
+setInterval(()=>{if(!document.hidden&&K&&D&&!$('md').classList.contains('on')&&!window._saving)refreshSilent()},180000);
 load();
 </script></body></html>
