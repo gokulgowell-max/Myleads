@@ -123,7 +123,9 @@ const toast=t=>{const e=$('toast');e.textContent=t;e.style.display='block';setTi
 const fail=e=>{if(String(e.message).includes('AUTH')){ST.set('');K='';return loginScreen('Your session ended. Please sign in again.')}toast(String(e.message||e).replace(/^(Error|Exception): /,''));document.querySelectorAll('button').forEach(b=>b.disabled=false)};
 const nameOf=em=>{const t=(D.members||[]).find(x=>x.email===String(em).toLowerCase());return t?t.name:(em||'Unassigned')};
 let RU=2,RD=2,RP=2;
-function load(){google.script.run.withSuccessHandler(d=>{D=d;if(d.rules){RU=d.rules.updates;RD=d.rules.days;RP=d.rules.pendFrom}SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;F.from=F.from||today();F.to=F.to||today();if(!window._d){F.lf=F.lt=today();window._d=1}if(!isM()){if(tab!='hist'&&tab!='pend')tab='leads'}else if(!window._i){tab='dash';window._i=1}draw()}).withFailureHandler(e=>{if(String(e.message).includes('AUTH')){const had=!!K;ST.set('');K='';loginScreen(had?'Your session ended. Please sign in again.':'')}else $('main').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}).getData(K)}
+/* Recruiter / member names always in A to Z order */
+const srt=d=>{['staff','members','team'].forEach(k=>{if(d[k])d[k].sort((x,y)=>String(x.name).trim().localeCompare(String(y.name).trim(),undefined,{sensitivity:'base'}))})};
+function load(){google.script.run.withSuccessHandler(d=>{D=d;srt(d);if(d.rules){RU=d.rules.updates;RD=d.rules.days;RP=d.rules.pendFrom}SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;F.from=F.from||today();F.to=F.to||today();if(!window._d){F.lf=F.lt=today();window._d=1}if(!isM()){if(tab!='hist'&&tab!='pend')tab='leads'}else if(!window._i){tab='dash';window._i=1}draw()}).withFailureHandler(e=>{if(String(e.message).includes('AUTH')){const had=!!K;ST.set('');K='';loginScreen(had?'Your session ended. Please sign in again.':'')}else $('main').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}).getData(K)}
 function draw(){
  $('who').innerHTML='Welcome, <b style="font-size:17px;font-weight:800;letter-spacing:.3px">'+esc(D.me.name)+'</b>';$('so').style.display=K?'':'none';
  const pn=pendList().length,un=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed').length;
@@ -465,7 +467,7 @@ function addLead(){
  $('md').classList.add('on');$('an').focus()
 }
 function saveLead(){
- const n=$('an').value.trim(),p=$('ap').value.trim();if(n&&!/^[A-Za-z][A-Za-z .'\-]*$/.test(n))return toast('Name must contain letters only');if(p.replace(/\D/g,'').length<10)return toast('Enter a phone number with at least 10 digits (name is optional)');
+ const n=$('an').value.trim(),p=$('ap').value.trim();if(p.replace(/\D/g,'').length<10)return toast('Enter a phone number with at least 10 digits (name is optional)');
  $('ab2').disabled=true;
  google.script.run.withSuccessHandler(id=>{F.pin=id;F.q='';F.st='';F.cs='';F.lf=F.lt=today();$('md').classList.remove('on');toast('Lead added');load()}).withFailureHandler(fail).addMyLead(K,n,p,$('as').value,$('aj').value)
 }
@@ -484,7 +486,7 @@ function edit(id){
  google.script.run.withSuccessHandler(h=>{const r=h.filter(e=>e.Round==(+l.Round||1)&&!(e.Time.slice(0,10)==today()&&e.Round==(+l.Round||1))).sort((a,b)=>a.Time.localeCompare(b.Time));
   if($('hs'))$('hs').innerHTML=r.length?'<b>Earlier updates (locked)</b>'+r.map(e=>`<div>${e.Time.slice(0,10)} · ${e.Round==(+l.Round||1)?'You':'Earlier recruiter'} · update ${e.UpdateNo||'-'} · ${esc(e.Status)}${e.CandidateStatus?' / '+esc(e.CandidateStatus):''}${e.Remark?' — '+esc(e.Remark):''}</div>`).join(''):'No earlier updates'}).withFailureHandler(()=>{if($('hs'))$('hs').textContent='Could not load earlier updates'}).getHistory(K,id)
 }
-function saveLeadName(id){const v=($('ln_name').value||'').trim();if(!v)return toast('Enter a name');if(!/^[A-Za-z][A-Za-z .'\-]*$/.test(v))return toast('Name must contain letters only');google.script.run.withSuccessHandler(()=>{const l=D.leads.find(x=>x.LeadID==id);if(l)l.Name=v;toast('Name saved');try{fill()}catch(e){}}).withFailureHandler(fail).setLeadName(K,id,v)}
+function saveLeadName(id){const v=($('ln_name').value||'').trim();if(!v)return toast('Enter a name');google.script.run.withSuccessHandler(()=>{const l=D.leads.find(x=>x.LeadID==id);if(l)l.Name=v;toast('Name saved');try{fill()}catch(e){}}).withFailureHandler(fail).setLeadName(K,id,v)}
 function tc(){const on=$('s').value=='Call Connected',r=$('r');r.disabled=!on;if(!on)r.value=''}
 function applyLocalLog(id,owner,s,c,k,time,round,no){
  const day=time.slice(0,10),l=LD[id]||{},e={Time:time,LeadID:id,Name:l.Name||'',Employee:l.AssignedTo||'',EmployeeEmail:owner,Status:s,CandidateStatus:c,Remark:k,Round:round,UpdateNo:no};
@@ -492,7 +494,7 @@ function applyLocalLog(id,owner,s,c,k,time,round,no){
  LG[key]=(LG[key]||[]).filter(x=>!(x.Time.slice(0,10)===day&&x.Round==round)).concat([e]).sort((a,b)=>a.Time.localeCompare(b.Time));
  DL=DL.filter(x=>!(x.LeadID===id&&x.EmployeeEmail===owner&&x.Time.slice(0,10)===day&&x.Round==round)).concat([e]);
 }
-function refreshSilent(){google.script.run.withSuccessHandler(d=>{D=d;SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;withLog(()=>{try{fill()}catch(e){}})}).withFailureHandler(()=>{}).getData(K)}
+function refreshSilent(){google.script.run.withSuccessHandler(d=>{D=d;srt(d);SX=d.stints||[];LD={};d.leads.forEach(l=>LD[l.LeadID]=l);LOGOK=false;withLog(()=>{try{fill()}catch(e){}})}).withFailureHandler(()=>{}).getData(K)}
 function save(id){
  window._saving=true;setTimeout(()=>{window._saving=false},8000);
  const s=$('s').value,r=s=='Call Connected'?$('r').value:'';if(s=='Not Called')return toast('Pick the call status');if(s=='Call Connected'&&!r)return toast('Pick the candidate status');
@@ -507,9 +509,24 @@ function bulk(){
  google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) moved');sel.clear();load()}).withFailureHandler(fail).assign(K,[...sel],t=='_un'?'':t)
 }
 function bulkDel(){
- if(!sel.size)return toast('Select leads first');
+ if(!sel.size)return alert('Select leads first');
  if(!confirm('Permanently delete '+sel.size+' lead(s)?\nThis cannot be undone. Call history stays in the records.'))return;
- google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) deleted');sel.clear();load()}).withFailureHandler(fail).deleteLeads(K,[...sel])
+ const ids=[...sel],gone=new Set(ids),backL=D.leads.slice(),backS=SX.slice();
+ // Remove from the screen instantly
+ D.leads=D.leads.filter(l=>!gone.has(l.LeadID));
+ SX=SX.filter(s=>!gone.has(s.LeadID));
+ ids.forEach(id=>delete LD[id]);
+ sel.clear();fill();
+ toast(ids.length+' lead(s) deleted');
+ window._saving=true;   // pause the automatic refresh while the server finishes
+ google.script.run
+  .withSuccessHandler(()=>{window._saving=false})
+  .withFailureHandler(e=>{
+    window._saving=false;
+    D.leads=backL;SX=backS;LD={};D.leads.forEach(l=>LD[l.LeadID]=l);fill();
+    alert('Delete failed, leads restored: '+(e.message||e));
+  })
+  .deleteLeads(K,ids)
 }
 function team(){
  const cnt=e=>D.leads.filter(l=>l.AssigneeEmail==e).length,B=(c,t,f)=>`<button class="ghost" style="color:${c}" onclick="${f}">${t}</button>`;
@@ -539,7 +556,7 @@ function delM(e){
 function dist(){
  return `<div class="panel"><h3 style="margin-top:0">Add &amp; distribute leads</h3>
  <div class="f"><label>Project (active projects only)</label><select id="pj"><option value="">Select project</option>${(D.projects||[]).filter(p=>p.active).map(p=>`<option>${esc(p.name)}</option>`).join('')}</select>${(D.projects||[]).some(p=>p.active)?'':'<small style="color:var(--mute)">No active project. Create one in the Projects tab first.</small>'}</div>
- <div class="f"><label>Leads: paste from the template (Name, Number, Email, Category, Lead source)</label><div style="font-size:12px;color:var(--mute);margin-bottom:6px">Only the Number is required. Lead source is visible to admins only.</div><button class="ghost" style="color:var(--pri);margin-bottom:8px" onclick="leadTemplate()">Download template (CSV)</button><textarea id="t" placeholder="Name, Number, Email, Category, Lead source"></textarea></div>
+ <div class="f"><label>Leads: paste from the template (Name, Number, Email, Category, Lead source)</label><div style="font-size:12px;color:var(--mute);margin-bottom:6px">Only the Number is required. Name can be blank or anything. Lead source is visible to admins only.</div><button class="ghost" style="color:var(--pri);margin-bottom:8px" onclick="leadTemplate()">Download template (CSV)</button><textarea id="t" placeholder="Name, Number, Email, Category, Lead source"></textarea></div>
  <div class="f"><label>Recruiters (leads are shared equally, round robin)</label><div id="rc">${D.team.map(t=>`<label style="display:block;color:var(--ink);font-size:15px"><input type="checkbox" value="${esc(t.email)}" style="width:auto"> ${esc(t.name)}</label>`).join('')}</div>
  <button class="ghost" style="color:var(--pri);margin-top:6px" onclick="document.querySelectorAll('#rc input').forEach(c=>c.checked=true)">Select all</button></div>
  <div class="row"><button id="ab" onclick="add()">Distribute leads</button></div></div>`
@@ -551,11 +568,11 @@ function add(){
  google.script.run.withSuccessHandler(r=>{$('ab').disabled=false;F.proj=p;tab='leads';showReport(r);load()}).withFailureHandler(e2=>{$('ab').disabled=false;fail(e2)}).addLeads(K,t,e,p)
 }
 function showReport(r){
- const rows=r.report||[],cls={added:'ok',duplicate:'w',short:'b',badname:'b'},lbl={added:'Added',duplicate:'Duplicate',short:'Less than 10 digits',badname:'Name has numbers or symbols'};
+ const rows=r.report||[],cls={added:'ok',duplicate:'w',short:'b'},lbl={added:'Added',duplicate:'Duplicate',short:'Less than 10 digits'};
  window._rep=rows;
  $('bx').style.maxWidth='920px';
  $('bx').innerHTML=`<h3 class="nm" style="font-size:22px">Distribution report</h3>
- <div class="kpis"><div class="kpi"><b>${r.added+(r.dup||0)+(r.short||0)+(r.badName||0)}</b><small>Total lines</small></div><div class="kpi"><b>${r.added}</b><small>Added</small></div><div class="kpi"><b>${r.dup||0}</b><small>Duplicate</small></div><div class="kpi"><b>${r.short||0}</b><small>Less than 10 digits</small></div><div class="kpi"><b>${r.badName||0}</b><small>Name not letters only</small></div></div>
+ <div class="kpis"><div class="kpi"><b>${r.added+(r.dup||0)+(r.short||0)}</b><small>Total lines</small></div><div class="kpi"><b>${r.added}</b><small>Added</small></div><div class="kpi"><b>${r.dup||0}</b><small>Duplicate</small></div><div class="kpi"><b>${r.short||0}</b><small>Less than 10 digits</small></div></div>
  <div style="max-height:55vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><table style="min-width:0"><tr><th>Line</th><th>Name</th><th>Number</th><th>Result</th><th style="text-align:left">Detail</th></tr>${rows.map(x=>`<tr><td>${x.line}</td><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td><span class="tag ${cls[x.result]}">${lbl[x.result]}</span></td><td style="white-space:normal;text-align:left">${esc(x.detail)}</td></tr>`).join('')||'<tr><td colspan="5">Nothing to report</td></tr>'}</table></div>
  <div class="row"><button class="ghost" onclick="dlReport()">Download report (CSV)</button><button onclick="closeP()">Close</button></div>`;
  $('md').classList.add('on')
