@@ -3,7 +3,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
 /* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
-const API_URL='https://script.google.com/macros/s/AKfycbxXyMsxyjSo8BnNhx5mx6u8sedLyL92ojn5zNu6ZmCzXG393wEcy5oDiWjvSED4ar8e/exec';
+const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
 /* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
 const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
   const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
@@ -135,7 +135,7 @@ function draw(){
 }
 const wa=p=>{let d=String(p).replace(/\D/g,'');if(d.length==10)d='91'+d;else if(d.length==11&&d[0]=='0')d='91'+d.slice(1);return d};
 const TC={'Not Called':'g','Call Connected':'ok','Interested':'ok','Will Update':'w','Ring Not Response':'w','Incoming Not Available':'w','Switch Off':'w','Busy':'w','Waiting for Documents':'w','Submitted':'ok','Profile Created':'ok','Not Suitable':'b','Not Interested':'b','Wrong Number':'b','Invalid Number':'b'},tg=s=>s?`<span class="tag ${TC[s]||'g'}">${esc(s)}</span>`:'';
-const projSel=cb=>{const P=(D.projects||[]).slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));return `<select onchange="F.proj=this.value;${cb}"><option value="">All projects</option>${P.map(p=>`<option value="${esc(p.name)}" ${F.proj==p.name?'selected':''}>${esc(p.name)}${p.active?'':' (off)'}</option>`).join('')}</select>`};
+const projSel=cb=>{const P=isM()?(D.projects||[]).slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name)):[...new Set((D.leads||[]).map(l=>l.Project).filter(Boolean))].sort((a,b)=>a.localeCompare(b)).map(n=>({name:n,active:true}));return `<select onchange="F.proj=this.value;${cb}"><option value="">All projects</option>${P.map(p=>`<option value="${esc(p.name)}" ${F.proj==p.name?'selected':''}>${esc(p.name)}${p.active?'':' (off)'}</option>`).join('')}</select>`};
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('en-CA')};
 const man=l=>/^Manual/.test(l.Source||'');
 const PMap=()=>{const m={};(D.profiles||[]).forEach(p=>{if(p.LeadID)m[p.LeadID]=p});return m};
@@ -182,11 +182,23 @@ function fill(){
  else if(tab=='hist')$('dc').innerHTML=histBody();
  else if(tab=='dash'){const W=dashW(),c=k=>cnt(W,k);
   $('dcards').innerHTML=statCards(W.map(w=>w.fin),[['New',c('new')],['Passed on to recruiters',c('passed')],['Carried forward',c('carry')],['Call again',c('again')],['Pending',pendList().filter(s=>!F.de||s.Email==F.de).length],['Unreachable',D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed').length],['Profiles created',profsIn(F.de).length]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · '));
-  $('dc').innerHTML=dashBody()}
+  const tw0=$('dc').querySelector('.tw'),sp0=tw0?[tw0.scrollTop,tw0.scrollLeft]:null;
+  $('dc').innerHTML=dashBody();
+  const tw1=$('dc').querySelector('.tw');if(sp0&&tw1){tw1.scrollTop=sp0[0];tw1.scrollLeft=sp0[1]}}
 }
 function dash(){
  const emp=`<select class="cv" onchange="F.de=this.value;fill()"><option value="">All team</option>${D.members.map(t=>`<option value="${esc(t.email)}" ${F.de==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`;
- return `<div class="stk${F.col?' col':''}"><div class="cv" id="dcards"></div><div class="fp">${dbar(false)}<div class="fr">${emp}${projSel('fill()').replace('<select','<select class="cv"')}<span class="sp"></span><button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Cards & filters ▾ ('+when()+')':'Hide ▴'}</button></div></div></div><div id="dc"></div>`
+ return `<div class="stk${F.col?' col':''}"><div class="cv" id="dcards"></div><div class="fp">${dbar(false)}<div class="fr">${emp}${projSel('fill()').replace('<select','<select class="cv"')}<span class="sp"></span><button onclick="dashXls()">Export Excel</button><button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Cards & filters ▾ ('+when()+')':'Hide ▴'}</button></div></div></div><div id="dc"></div>`
+}
+/* Export the dashboard employee table exactly as shown (respects date, employee and project filters) */
+function dashXls(){
+ const t=$('dtab');if(!t)return toast('Nothing to export');
+ const rows=[...t.rows].map(r=>[...r.cells].map(c=>c.textContent.trim()));
+ if(rows.length<2)return toast('Nothing to export');
+ const x=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const cell=v=>`<Cell><Data ss:Type="${/^-?\d+$/.test(v)?'Number':'String'}">${x(v)}</Data></Cell>`;
+ const xml=`${'<'+'?'}xml version="1.0"?>${'<'+'?'}mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Dashboard"><Table>${rows.map(r=>'<Row>'+r.map(cell).join('')+'</Row>').join('')}</Table></Worksheet></Workbook>`;
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'application/vnd.ms-excel'}));a.download='dashboard-'+(F.lf||'start')+'_to_'+(F.lt||'now')+'.xls';a.click()
 }
 function histPage(){return `<div class="stk"><div class="fp">${dbar(false)}</div></div><div id="dc"></div>`}
 function histTable(G,emp){
@@ -200,7 +212,7 @@ function histBody(){
 function dashBody(){
  const f=F.lf||'0000-00-00',t=F.lt||'9999-12-31',inR=d=>d&&d.slice(0,10)>=f&&d.slice(0,10)<=t;
  const G=DL.filter(e=>inR(e.Time)&&!PI().has((LD[e.LeadID]||{}).Project||'')&&(!F.proj||(LD[e.LeadID]&&LD[e.LeadID].Project==F.proj))&&(!F.de||e.EmployeeEmail==F.de));
- let h='<div class="tw"><table><tr><th>Employee</th><th>New</th><th>Added by member</th><th>Passed on to them</th><th>Carried forward</th><th>Call again</th><th>Total</th><th>Updates</th><th>Connected</th><th>Ring no response</th><th>Switch off</th><th>Busy</th><th>Wrong / invalid</th><th>Interested</th><th>Will update</th><th>Waiting for documents</th><th>Submitted</th><th>Profile created</th><th>Not suitable</th><th>Not interested</th><th>Not called</th><th>Pending now</th><th>Passed on</th><th>Profiles created</th></tr>';
+ let h='<div class="tw"><table id="dtab"><tr><th>Employee</th><th>New</th><th>Added by member</th><th>Passed on to them</th><th>Carried forward</th><th>Call again</th><th>Total</th><th>Updates</th><th>Connected</th><th>Ring no response</th><th>Switch off</th><th>Busy</th><th>Wrong / invalid</th><th>Interested</th><th>Will update</th><th>Waiting for documents</th><th>Submitted</th><th>Profile created</th><th>Not suitable</th><th>Not interested</th><th>Not called</th><th>Pending now</th><th>Passed on</th><th>Profiles created</th></tr>';
  D.members.filter(x=>!F.de||x.email==F.de).forEach(x=>{
   const W=wset(x.email).filter(w=>!PI().has(w.lead.Project||'')&&(!F.proj||w.lead.Project==F.proj)),k=n=>cnt(W,n),fs=(...s)=>W.filter(w=>s.includes(w.fin.Status)).length,fc=s=>W.filter(w=>w.fin.CandidateStatus==s).length;
   const nw=W.filter(w=>w.kind=='new'),ad=nw.filter(w=>man(w.lead)).length;
@@ -224,7 +236,7 @@ function statCards(L,sub){
 function list(){
  const sl=(k,all,arr)=>`<select class="cv" onchange="F.${k}=this.value;fillLeads()"><option value="">${all}</option>${arr.map(s=>`<option ${F[k]==s?'selected':''}>${s}</option>`).join('')}</select>`;
  const emp=isM()?`<select class="cv" onchange="F.emp=this.value;fillLeads()"><option value="">All employees</option><option value="_un" ${F.emp=='_un'?'selected':''}>Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}" ${F.emp==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:'';
- let h=`<div class="stk${F.col?' col':''}">`+(isM()?'':'<div class="cv" id="lcards"></div>')+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${isM()?srcSel():''}${emp}</div></div></div>`;
+ let h=`<div class="stk${F.col?' col':''}">`+'<div class="cv" id="lcards"></div>'+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${isM()?srcSel():''}${emp}</div></div></div>`;
  if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><label style="display:flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap"><input type="checkbox" id="selall" style="width:18px;height:18px" onchange="selAll(this.checked)"> Select all</label><span id="selcount" style="color:var(--mute)"></span><button onclick="bulk()">Assign selected</button><button class="ghost" style="color:var(--bad)" onclick="bulkDel()">Delete selected</button></div>`;
  return h+'<div id="rows"></div>'
 }
@@ -395,8 +407,8 @@ function closeP(){$('md').classList.remove('on');$('bx').style.maxWidth=''}
 
 function fillLeads(){
  const PM=PMap();
- if(isM()){$('rows').innerHTML=mrows();updSel();return}
- const me=D.me.email,W=wset(me),c=k=>cnt(W,k),pn=pendList().length;
+ if(isM()){$('rows').innerHTML=mrows();$('lcards').innerHTML=statCards(MXL,'');updSel();return}
+ const me=D.me.email,W=wset(me).filter(w=>!F.proj||w.lead.Project==F.proj),c=k=>cnt(W,k),pn=pendList().filter(s=>!F.proj||(LD[s.LeadID]||{}).Project==F.proj).length;
  $('lcards').innerHTML=statCards(W.map(w=>w.fin),[['New',c('new')+c('passed')],['Carried forward',c('carry')],['Call again',c('again')],['Pending',pn],['Profiles created',profsIn(me).length]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · '));
  const q=F.q.toLowerCase(),T=F.lt&&F.lt<today()?F.lt:today(),past=!!F.lt&&F.lt<today();
  const L=W.filter(w=>(!q||matchQ(w.lead,q))&&(!F.st||w.fin.Status==F.st)&&(!F.cs||w.fin.CandidateStatus==F.cs)&&(!F.proj||w.lead.Project==F.proj));
@@ -662,6 +674,7 @@ function calEdit(ds){const sun=new Date(ds+'T12:00:00').getDay()===0;
 function calSet(ds,kind,em){google.script.run.withSuccessHandler(()=>{toast('Calendar saved');closeP();load()}).withFailureHandler(fail).setCalendarDay(K,ds,kind,em,'')}
 function signOut(){ST.set('');K='';D=null;loginScreen()}
 addEventListener('resize',()=>{const t=$('top');if(t)document.documentElement.style.setProperty('--th',t.offsetHeight+'px')});
-setInterval(()=>{if(!document.hidden&&K&&D&&!$('md').classList.contains('on')&&!window._saving)refreshSilent()},180000);
+let _lr=Date.now();
+setInterval(()=>{const gap=(isM()&&tab=='dash')?15000:180000;if(!document.hidden&&K&&D&&!$('md').classList.contains('on')&&!window._saving&&Date.now()-_lr>=gap-1000){_lr=Date.now();refreshSilent()}},5000);
 load();
 </script></body></html>
