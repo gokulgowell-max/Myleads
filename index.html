@@ -3,7 +3,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
 /* ---- Backend address: paste your Apps Script web app URL (ends with /exec) ---- */
-const API_URL='https://script.google.com/macros/s/AKfycbxXyMsxyjSo8BnNhx5mx6u8sedLyL92ojn5zNu6ZmCzXG393wEcy5oDiWjvSED4ar8e/exec';
+const API_URL='PASTE_YOUR_WEB_APP_URL_HERE';
 /* ---- Makes google.script.run work from any host by calling the Apps Script API ---- */
 const google=(window.google&&window.google.script&&window.google.script.run)?window.google:{script:{run:(()=>{
   const send=(fn,args,ok,bad)=>fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args})})
@@ -108,6 +108,7 @@ th:first-child,td:first-child{text-align:left}
 .mis thead tr:first-child th{top:0;z-index:3}.mis thead tr:nth-child(2) th{top:31px;z-index:3}.mis th:first-child{position:sticky;top:0;left:auto;background:#0a4d8c;color:#fff;box-shadow:none;z-index:3}.mis td:first-child{position:static;background:transparent;box-shadow:none}
 .mis input,.mis select,.mis textarea,.mis .ph input,.mis .ph select{font-size:14px!important;line-height:1.3!important;font-family:inherit!important}
 .lb{display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end}
+details>summary::-webkit-details-marker{display:none}
 </style></head><body>
 <div id="top"><header><h1>Gowell Call Tracker</h1><span id="who"></span><button class="ghost" onclick="load()">Refresh</button><button class="ghost" id="so" style="display:none" onclick="signOut()">Sign out</button></header>
 <nav id="nav"></nav></div>
@@ -143,6 +144,8 @@ const profsIn=email=>(D.profiles||[]).filter(p=>(!email||p.CreatedBy==email)&&p.
 const addD=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toLocaleDateString('en-CA')};
 const diffD=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
 const isOpen=(s,c)=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy'].includes(s)||(s=='Call Connected'&&['Will Update','Waiting for Documents'].includes(c));
+/* Only not-connected leads rotate (Call Connected leads stay with the recruiter) */
+const isRot=s=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy'].includes(s);
 let DL=[],LG={},LD={},SX=[],LOGOK=false;
 const kp=a=>'<div class="kpis">'+a.map(x=>`<div class="kpi ${x[2]||''}"><b>${x[1]}</b><small>${x[0]}</small></div>`).join('')+'</div>';
 function withLog(cb){
@@ -155,7 +158,7 @@ const wdiff=(a,b)=>{let n=0,d=new Date(a+'T12:00:00');const e=new Date(b+'T12:00
 const addW=(s,n)=>{let d=new Date(s+'T12:00:00'),k=0;while(k<n){d.setDate(d.getDate()+1);if(isWorkC(d.toLocaleDateString('en-CA'),D.me.email))k++}return d.toLocaleDateString('en-CA')};
 const dnum=st=>{const l=LD[st.LeadID],s=l&&!st.End&&l.AssigneeEmail==st.Email&&l.StintStart?addW(l.StintStart,+l.PauseDays||0):st.Start;return wdiff(s,today())+1};
 const PI=()=>new Set((D.projects||[]).filter(p=>!p.active).map(p=>p.name));
-const pendList=()=>SX.filter(s=>!s.End&&dnum(s)>=RP&&LD[s.LeadID]&&!PI().has(LD[s.LeadID].Project||'')&&LD[s.LeadID].AssigneeEmail==s.Email&&isOpen(LD[s.LeadID].Status,LD[s.LeadID].CandidateStatus));
+const pendList=()=>SX.filter(s=>!s.End&&dnum(s)>=RP&&LD[s.LeadID]&&!PI().has(LD[s.LeadID].Project||'')&&LD[s.LeadID].AssigneeEmail==s.Email&&isRot(LD[s.LeadID].Status));
 const finIn=(st,f,T)=>{const from=st.Start>f?st.Start:f;let r=null;for(const e of LG[st.LeadID+'|'+st.Email]||[]){const t=e.Time.slice(0,10);if(t<from)continue;if(st.End&&t>=st.End)break;if(t<=T)r=e;else break}return stOf(r)};
 const cnt=(W,k)=>k=='carry'?W.filter(w=>w.carried&&!w.prev).length:k=='again'?W.filter(w=>w.carried&&w.prev).length:W.filter(w=>w.kind==k).length;
 function wset(email){
@@ -237,7 +240,7 @@ function list(){
  const sl=(k,all,arr)=>`<select class="cv" onchange="F.${k}=this.value;fillLeads()"><option value="">${all}</option>${arr.map(s=>`<option ${F[k]==s?'selected':''}>${s}</option>`).join('')}</select>`;
  const emp=isM()?`<select class="cv" onchange="F.emp=this.value;fillLeads()"><option value="">All employees</option><option value="_un" ${F.emp=='_un'?'selected':''}>Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}" ${F.emp==t.email?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:'';
  let h=`<div class="stk${F.col?' col':''}">`+'<div class="cv" id="lcards"></div>'+`<div class="fp">${dbar(isM())}<div class="fr"><input id="q" placeholder="Search name or phone" value="${esc(F.q)}" oninput="F.q=this.value;fillLeads()">${isM()?'':'<button onclick="addLead()">+ Add lead</button>'}${isM()?'<button onclick="exportLeadsXls()">Export Excel</button>':''}<button class="ghost tgl" onclick="F.col=!F.col;draw()">${F.col?'Filters ▾ ('+when()+')':'Hide ▴'}</button>${sl('st','All call statuses',D.statuses)}${sl('cs','All candidate statuses',D.cand)}${projSel('fillLeads()')}${isM()?srcSel():''}${emp}</div></div></div>`;
- if(isM())h+=`<div class="tools"><select id="bt"><option value="">Move selected to…</option><option value="_un">Unassigned</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><label style="display:flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap"><input type="checkbox" id="selall" style="width:18px;height:18px" onchange="selAll(this.checked)"> Select all</label><span id="selcount" style="color:var(--mute)"></span><button onclick="bulk()">Assign selected</button><button class="ghost" style="color:var(--bad)" onclick="bulkDel()">Delete selected</button></div>`;
+ if(isM())h+=`<div class="tools"><details id="btd" style="position:relative;flex:1;min-width:210px"><summary id="bts" style="list-style:none;cursor:pointer;padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff">Move selected to… ▾</summary><div style="position:absolute;z-index:6;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0003;max-height:300px;overflow:auto;padding:8px"><label style="display:flex;align-items:center;gap:8px;padding:6px 4px;color:var(--ink);font-weight:600;cursor:pointer"><input type="checkbox" value="_un" onchange="btChg(this)" style="width:18px;height:18px;min-width:0;flex:none;padding:0"> Unassigned</label><button type="button" class="ghost" style="color:var(--pri);margin:4px 0 6px;padding:5px 10px;font-size:13px" onclick="btAll()">Select all recruiters</button>${D.team.map(t=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;color:var(--ink);cursor:pointer"><input type="checkbox" value="${esc(t.email)}" onchange="btChg(this)" style="width:18px;height:18px;min-width:0;flex:none;padding:0"> ${esc(t.name)}</label>`).join('')}</div></details><label style="display:flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap"><input type="checkbox" id="selall" style="width:18px;height:18px" onchange="selAll(this.checked)"> Select all</label><span id="selcount" style="color:var(--mute)"></span><button onclick="bulk()">Assign selected</button><button class="ghost" style="color:var(--bad)" onclick="bulkDel()">Delete selected</button></div>`;
  return h+'<div id="rows"></div>'
 }
 const leadCard=(l,fin,tags,meta,btn,chk)=>`<div class="lead">${chk||'<span></span>'}
@@ -416,7 +419,7 @@ function fillLeads(){
  L.sort((x,y)=>rk(x)-rk(y)||(rk(x)==2?x.fin.Time.localeCompare(y.fin.Time):0));
  const tag={new:'',passed:'',carry:'',again:' <span class="tag w">Call again</span>'};
  $('rows').innerHTML=(past?'<div class="empty" style="padding:8px;text-align:left">History view: statuses as they were on '+esc(when())+'. Updates are only possible from Today.</div>':'')+(L.length?L.slice(0,300).map(w=>{const l=w.lead,ed=!past&&!w.st.End&&l.AssigneeEmail==me,cf=w.kind=='carry'?` <span class="tag w">Carried from ${dshort(w.st.Start)}</span>`:'';
-  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Category,ed?'Day '+dnum(w.st)+' of '+RD+' · Update '+(l.Updates||0):''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
+  return leadCard(l,w.fin,(tag[w.kind]||'')+cf+(PM[l.LeadID]?' <span class="tag ok">Profile created</span>':'')+(man(l)?' <span class="tag g">Manual</span>':''),[l.Project,l.Category,ed?(isRot(l.Status)?'Day '+dnum(w.st)+' of '+RD+' · ':'')+'Update '+(l.Updates||0):''],(ed?`<button onclick="edit('${l.LeadID}')">Update</button> <a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}" style="display:inline-block;margin-top:6px;background:#1fa855;color:#fff;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none">WhatsApp</a>`:'')+(ed&&!PM[l.LeadID]&&l.Status=='Call Connected'?` <button class="ghost" style="color:var(--pri)" onclick="profOpen('${l.LeadID}')">Create profile</button>`:''))}).join('')+(L.length>300?'<div class="empty">Showing first 300. Use search or filters.</div>':''):'<div class="empty">No leads found.</div>')
 }
 let MXL=[];
 function exportLeadsXls(){if(!isM())return toast('Only admins can export');const L=MXL||[];if(!L.length)return toast('No leads to export');
@@ -445,10 +448,14 @@ function fillPend(){
  $('dc').innerHTML=`<div class="sh" style="margin-top:0">${L.length} pending lead(s). Finish them before day ${RD}, or they move to the next recruiter.</div>`+(L.length?L.map(({s,l})=>{const left=RD-dnum(s);return leadCard(l,l,` <span class="tag w">Update ${l.Updates||0} · ${left>0?left+' day(s) left':'last day'}</span>`,[l.Project,l.Source,'Day '+dnum(s)+' of '+RD],`<button onclick="edit('${l.LeadID}')">Update</button>`)}).join(''):'<div class="empty">Nothing pending. Great work.</div>')
 }
 function fillUnr(){
- const L=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed');
+ $('dc').innerHTML=`<div class="fp"><div class="fr"><input id="uq" placeholder="Search name or phone" value="${esc(F.uq||'')}" oninput="F.uq=this.value;unrList()" autocomplete="off" style="flex:1 1 220px;min-width:160px"></div></div><div id="ul"></div>`;
+ unrList()
+}
+function unrList(){
+ const all=D.leads.filter(l=>l.Unreachable&&l.Unreachable!='Closed'),q=(F.uq||'').trim().toLowerCase(),L=q?all.filter(l=>matchQ(l,q)):all;
  const jr=l=>DL.filter(e=>e.LeadID==l.LeadID).sort((a,b)=>a.Time.localeCompare(b.Time)).map(e=>`Recruiter ${e.Round} · update ${e.UpdateNo} · ${e.Time.slice(0,10)} · ${esc(e.Employee)} · ${esc(e.Status)}${e.CandidateStatus?' / '+esc(e.CandidateStatus):''}${e.Remark?' — '+esc(e.Remark):''}`).join('<br>')||'No updates recorded';
- $('dc').innerHTML=`<div class="sh" style="margin-top:0">${L.length} unreachable lead(s): 3 recruiters could not close them.</div>`+(L.length?L.map(l=>`<div class="lead" style="grid-template-columns:1fr"><div><span class="n">${esc(l.Name)}</span> <span class="tag b">Unreachable since ${dshort(l.Unreachable)}</span><br><a href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a> <span style="color:var(--mute)">${esc(l.Project||'')}</span></div><div class="m">${jr(l)}</div>
- <div class="tools" style="margin:0"><select id="ug_${l.LeadID}"><option value="">Give to recruiter…</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><button onclick="giveU('${l.LeadID}')">Give (fresh 3 updates)</button><button class="ghost" style="color:var(--mute)" onclick="closeU('${l.LeadID}')">Remove from list</button></div></div>`).join(''):'<div class="empty">No unreachable leads.</div>')
+ $('ul').innerHTML=`<div class="sh" style="margin-top:0">${q?L.length+' found of '+all.length:all.length} unreachable lead(s): 3 recruiters could not connect them.</div>`+(L.length?L.map(l=>`<div class="lead" style="grid-template-columns:1fr"><div><span class="n">${esc(l.Name)}</span> <span class="tag b">Unreachable since ${dshort(l.Unreachable)}</span><br><a href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a> <span style="color:var(--mute)">${esc(l.Project||'')}</span></div><div class="m">${jr(l)}</div>
+ <div class="tools" style="margin:0"><select id="ug_${l.LeadID}"><option value="">Give to recruiter…</option>${D.team.map(t=>`<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select><button onclick="giveU('${l.LeadID}')">Give to recruiter</button><button class="ghost" style="color:var(--mute)" onclick="closeU('${l.LeadID}')">Remove from list</button></div></div>`).join(''):'<div class="empty">'+(q?'No unreachable lead matches your search.':'No unreachable leads.')+'</div>')
 }
 let PN=[];
 function fillProj(){
@@ -463,7 +470,7 @@ function fillProj(){
 }
 function togP(i){
  const n=PN[i],p=(D.projects||[]).find(x=>x.name==n),on=p?!p.active:false,c=D.leads.filter(l=>l.Project==n&&l.AssigneeEmail).length;
- if(!on&&!confirm('Deactivate "'+n+'"?\n'+c+' lead(s) will disappear from recruiters until you activate it again. Nothing is deleted, and the 6-day clock pauses.'))return;
+ if(!on&&!confirm('Deactivate "'+n+'"?\n'+c+' lead(s) will disappear from recruiters until you activate it again. Nothing is deleted, and the 2-day clock pauses.'))return;
  google.script.run.withSuccessHandler(()=>{toast(on?'Project activated':'Project deactivated');load()}).withFailureHandler(fail).setProjectActive(K,n,on)
 }
 function giveU(id){const e=$('ug_'+id).value;if(!e)return toast('Choose a recruiter');google.script.run.withSuccessHandler(()=>{toast('Lead given');load()}).withFailureHandler(fail).assign(K,[id],e)}
@@ -489,7 +496,7 @@ function edit(id){
  const used=+l.Updates||0,n=me?used:used+1,day=l.StintStart?wdiff(l.StintStart,today())+1:1,o=(a,v)=>a.map(s=>`<option ${s==v?'selected':''}>${s}</option>`).join('');
  $('bx').innerHTML=`<h3 class="nm">${esc(l.Name||'(no name)')}</h3><a class="ph" href="tel:${esc(l.Phone)}">${esc(l.Phone)}</a><a class="wa" target="_blank" rel="noopener" href="https://wa.me/${wa(l.Phone)}">WhatsApp</a>
  <div class="f"><label>Name (add or correct)</label><input id="ln_name" value="${esc(l.Name)}" placeholder="ENTER NAME" maxlength="80"> <button class="ghost" style="margin-top:6px" onclick="saveLeadName('${id}')">Save name</button></div>
- <p class="ud">Update ${n} · Day ${day} of ${RD}${me?' · you can edit today\'s update until midnight':''}</p><div class="his" id="hs">Loading earlier updates…</div>
+ <p class="ud">Update ${n}${isRot(l.Status)?' · Day '+day+' of '+RD:''}${me?' · you can edit today\'s update until midnight':''}</p><div class="his" id="hs">Loading earlier updates…</div>
  <div class="f"><label>Call status</label><select id="s" onchange="tc()"><option value="Not Called">Select call status</option>${o(D.statuses.filter(x=>x!='Not Called'),me?me.Status:'')}</select></div>
  <div class="f" id="cf"><label>Candidate status</label><select id="r"><option value="">Select</option>${o(D.cand,me?me.CandidateStatus:'')}</select></div>
  <div class="f"><label>Remark</label><textarea id="k" rows="3">${esc(me?me.Remark:'')}</textarea></div>
@@ -516,9 +523,26 @@ function save(id){
  try{fill()}catch(e){}
  google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1;applyLocalLog(id,l.AssigneeEmail,s,r,k,res.updated,res.round,res.no)}try{fill()}catch(e){}}).withFailureHandler(e=>{if(/Lock timeout/i.test(String(e.message))){setTimeout(()=>google.script.run.withSuccessHandler(res=>{if(l){l.Updated=res.updated;l.Updates=res.updates;l.Calls=(+l.Calls||0)+1;applyLocalLog(id,l.AssigneeEmail,s,r,k,res.updated,res.round,res.no)}try{fill()}catch(x){}}).withFailureHandler(e2=>{if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e2)}).saveCall(K,id,s,r,k,''),2000);toast('Server busy, retrying…');return}if(l)Object.assign(l,prev);try{fill()}catch(x){}fail(e)}).saveCall(K,id,s,r,k,'')
 }
+function btSum(){const v=[...document.querySelectorAll('#btd input:checked')],t=!v.length?'Move selected to…':v[0].value==='_un'?'Unassigned':v.length==1?v[0].parentNode.textContent.trim():v.length+' recruiters selected';const e=$('bts');if(e)e.textContent=t+' ▾'}
+function btChg(el){const bx=[...document.querySelectorAll('#btd input')];if(el.checked)bx.forEach(b=>{if(b!==el&&(el.value==='_un'||b.value==='_un'))b.checked=false});btSum()}
+function btAll(){document.querySelectorAll('#btd input').forEach(b=>b.checked=b.value!=='_un');btSum()}
 function bulk(){
- if(!sel.size)return toast('Select leads first');const t=$('bt').value;if(!t)return toast('Choose who to assign to');
- google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) moved');sel.clear();load()}).withFailureHandler(fail).assign(K,[...sel],t=='_un'?'':t)
+ if(!sel.size)return toast('Select leads first');
+ const t=[...document.querySelectorAll('#btd input:checked')].map(c=>c.value);
+ if(!t.length)return toast('Choose who to assign to');
+ const ids=[...sel];
+ if(t.length===1){
+  google.script.run.withSuccessHandler(n=>{toast(n+' lead(s) moved');sel.clear();load()}).withFailureHandler(fail).assign(K,ids,t[0]==='_un'?'':t[0]);return
+ }
+ // several recruiters: leads are shared equally, one by one (round robin)
+ const g=t.map(()=>[]);ids.forEach((id,i)=>g[i%t.length].push(id));
+ let moved=0;toast('Moving leads…');
+ const run=i=>{
+  if(i>=t.length){toast(moved+' lead(s) shared among '+t.length+' recruiters');sel.clear();load();return}
+  if(!g[i].length)return run(i+1);
+  google.script.run.withSuccessHandler(n=>{moved+=n;run(i+1)}).withFailureHandler(e=>{if(moved){sel.clear();load()}fail(e)}).assign(K,g[i],t[i])
+ };
+ run(0)
 }
 function bulkDel(){
  if(!sel.size)return alert('Select leads first');
@@ -559,25 +583,40 @@ function addM(){
  const n=$('mn').value.trim(),e=$('em').value.trim();if(!n||!e)return toast('Enter name and email');
  $('mb').disabled=true;google.script.run.withSuccessHandler(()=>{toast('Member saved');load()}).withFailureHandler(fail).addMember(K,n,e,$('mr').value,$('mp').value)
 }
-function togM(e,on){google.script.run.withSuccessHandler(()=>{toast(on?'Activated':'Deactivated');load()}).withFailureHandler(fail).setMemberActive(K,e,on)}
+function togM(e,on){
+ if(!on){const m=D.staff.find(x=>x.email==e),n=D.leads.filter(l=>l.AssigneeEmail==e).length;
+  if(!confirm('Deactivate '+m.name+'?'+(n?'\n'+n+' lead(s) will be shared equally among the other active recruiters.':'')))return}
+ google.script.run.withSuccessHandler(n=>{toast(on?'Activated':(n>0?'Deactivated. '+n+' lead(s) shared with the other recruiters':'Deactivated'));load()}).withFailureHandler(fail).setMemberActive(K,e,on)
+}
 function delM(e){
  const m=D.staff.find(x=>x.email==e),n=D.leads.filter(l=>l.AssigneeEmail==e).length;
- if(!confirm('Delete '+m.name+'?'+(n?'\n'+n+' lead(s) assigned to them will become Unassigned so you can give them to someone else.':'')+'\nTheir past call history stays in the records.'))return;
+ if(!confirm('Delete '+m.name+'?'+(n?'\n'+n+' lead(s) assigned to them will be shared equally among the other active recruiters.':'')+'\nTheir past call history stays in the records.'))return;
  google.script.run.withSuccessHandler(()=>{toast('Member deleted');load()}).withFailureHandler(fail).deleteMember(K,e)
 }
 function dist(){
  return `<div class="panel"><h3 style="margin-top:0">Add &amp; distribute leads</h3>
- <div class="f"><label>Project (active projects only)</label><select id="pj"><option value="">Select project</option>${(D.projects||[]).filter(p=>p.active).map(p=>`<option>${esc(p.name)}</option>`).join('')}</select>${(D.projects||[]).some(p=>p.active)?'':'<small style="color:var(--mute)">No active project. Create one in the Projects tab first.</small>'}</div>
+ <div class="f"><label>Project (active projects only)</label><select id="pj" onchange="pjChg()"><option value="">Select project</option>${(D.projects||[]).filter(p=>p.active).map(p=>`<option>${esc(p.name)}</option>`).join('')}</select>${(D.projects||[]).some(p=>p.active)?'':'<small style="color:var(--mute)">No active project. Create one in the Projects tab first.</small>'}</div>
+ <div class="f"><label>Lead source (based on the project)</label><select id="ls" disabled onchange="srcChg()"><option value="">Select a project first</option></select><input id="lsn" style="display:none;margin-top:6px" maxlength="80" autocomplete="off" placeholder="Type the new source name"><div style="font-size:12px;color:var(--mute);margin-top:4px">Applies to every lead below, unless a line has its own source in the Lead source column.</div></div>
  <div class="f"><label>Leads: paste from the template (Name, Number, Email, Category, Lead source)</label><div style="font-size:12px;color:var(--mute);margin-bottom:6px">Only the Number is required. Name can be blank or anything. Lead source is visible to admins only.</div><button class="ghost" style="color:var(--pri);margin-bottom:8px" onclick="leadTemplate()">Download template (CSV)</button><textarea id="t" placeholder="Name, Number, Email, Category, Lead source"></textarea></div>
  <div class="f"><label>Recruiters (leads are shared equally, round robin)</label><div id="rc">${D.team.map(t=>`<label style="display:block;color:var(--ink);font-size:15px"><input type="checkbox" value="${esc(t.email)}" style="width:auto"> ${esc(t.name)}</label>`).join('')}</div>
  <button class="ghost" style="color:var(--pri);margin-top:6px" onclick="document.querySelectorAll('#rc input').forEach(c=>c.checked=true)">Select all</button></div>
  <div class="row"><button id="ab" onclick="add()">Distribute leads</button></div></div>`
 }
+/* Lead sources already used in a project (manual recruiter entries are left out) */
+const projSources=pn=>[...new Set((D.leads||[]).filter(l=>l.Project==pn&&l.Source&&!/^Manual/.test(l.Source)).map(l=>l.Source))].sort((a,b)=>a.localeCompare(b));
+function pjChg(){
+ const pn=$('pj').value,ls=$('ls'),nw=$('lsn');nw.style.display='none';nw.value='';
+ if(!pn){ls.disabled=true;ls.innerHTML='<option value="">Select a project first</option>';return}
+ ls.disabled=false;
+ ls.innerHTML='<option value="">No source</option>'+projSources(pn).map(x=>`<option>${esc(x)}</option>`).join('')+'<option value="__new">+ Add new source</option>'
+}
+function srcChg(){const n=$('lsn'),on=$('ls').value==='__new';n.style.display=on?'':'none';if(on)n.focus();else n.value=''}
 function add(){
  const t=$('t').value.trim(),p=$('pj').value.trim(),e=[...document.querySelectorAll('#rc input:checked')].map(c=>c.value);
  if(!p)return toast('Enter a project name');if(!t)return toast('Paste some leads first');if(!e.length)return toast('Select at least one recruiter');
+ let src=$('ls').value;if(src==='__new'){src=$('lsn').value.trim();if(!src)return toast('Type the new source name')}
  $('ab').disabled=true;
- google.script.run.withSuccessHandler(r=>{$('ab').disabled=false;F.proj=p;tab='leads';showReport(r);load()}).withFailureHandler(e2=>{$('ab').disabled=false;fail(e2)}).addLeads(K,t,e,p)
+ google.script.run.withSuccessHandler(r=>{$('ab').disabled=false;F.proj=p;tab='leads';showReport(r);load()}).withFailureHandler(e2=>{$('ab').disabled=false;fail(e2)}).addLeads(K,t,e,p,src)
 }
 function showReport(r){
  const rows=r.report||[],cls={added:'ok',duplicate:'w',short:'b'},lbl={added:'Added',duplicate:'Duplicate',short:'Less than 10 digits'};
