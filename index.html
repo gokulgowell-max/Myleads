@@ -143,9 +143,9 @@ const PMap=()=>{const m={};(D.profiles||[]).forEach(p=>{if(p.LeadID)m[p.LeadID]=
 const profsIn=email=>(D.profiles||[]).filter(p=>(!email||p.CreatedBy==email)&&p.CreatedAt.slice(0,10)>=(F.lf||'0000-00-00')&&p.CreatedAt.slice(0,10)<=(F.lt||'9999-12-31'));
 const addD=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toLocaleDateString('en-CA')};
 const diffD=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
-const isOpen=(s,c)=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy'].includes(s)||(s=='Call Connected'&&['Will Update','Waiting for Documents'].includes(c));
+const isOpen=(s,c)=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy','Invalid Number'].includes(s)||(s=='Call Connected'&&['Will Update','Waiting for Documents'].includes(c));
 /* Only not-connected leads rotate (Call Connected leads stay with the recruiter) */
-const isRot=s=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy'].includes(s);
+const isRot=s=>s=='Not Called'||['Ring Not Response','Incoming Not Available','Switch Off','Busy','Invalid Number'].includes(s);
 let DL=[],LG={},LD={},SX=[],LOGOK=false;
 const kp=a=>'<div class="kpis">'+a.map(x=>`<div class="kpi ${x[2]||''}"><b>${x[1]}</b><small>${x[0]}</small></div>`).join('')+'</div>';
 function withLog(cb){
